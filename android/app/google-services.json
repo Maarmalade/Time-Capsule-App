@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "579471840996",
+    "project_id": "time-capsule-app-51378",
+    "storage_bucket": "time-capsule-app-51378.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579471840996:android:b2b452240d6eca43c3fef1",
+        "android_client_info": {
+          "package_name": "com.example.timeCapsule"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLYvBSVWvLpOIweL0ZI9o03G_OOy99u24"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
