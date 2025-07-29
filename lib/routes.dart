@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'login.dart';
-import 'register.dart';
+import 'pages/auth/login.dart';
+import 'pages/auth/register.dart';
 
 class Routes {
   static const String login = '/';
