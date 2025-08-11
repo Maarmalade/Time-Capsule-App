@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
+
+import '../diary/digital_diary_page.dart';
 import '../../widgets/home_panel_card.dart';
+import 'home_panel_grid.dart';
+import '../../services/diary_service.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  void _navigate(BuildContext context, String route, String pageName) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(
-            title: Text(pageName),
-            leading: BackButton(),
-          ),
-          body: Center(
-            child: Text('You are now in $pageName', style: TextStyle(fontSize: 24)),
-          ),
-        ),
-      ),
-    );
-  }
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -43,29 +30,31 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 24,
-                  crossAxisSpacing: 24,
-                  children: [
-                    HomePanelCard(
-                      text: 'Access Memory',
-                      onTap: () => _navigate(context, '/memory_album', 'Memory Album'),
-                    ),
-                    HomePanelCard(
-                      text: 'Sent Time Leap Messages',
-                      onTap: () => _navigate(context, '/time_leap_messages', 'Time Leap Messages'),
-                    ),
-                    HomePanelCard(
-                      text: 'Take Digital Diary',
-                      onTap: () => _navigate(context, '/digital_diary', 'Digital Diary'),
-                    ),
-                    HomePanelCard(
-                      text: "1 year ago, you've\nvisited Japan",
-                      image: const AssetImage('assets/japan_flag.png'), // Replace with your asset if needed
-                      onTap: () {}, // No action yet
-                    ),
-                  ],
+                child: HomePanelGrid(
+                  diaryService: DiaryService(),
+                  navigate: (context, route, pageName) {
+                    if (route == '/digital_diary') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DigitalDiaryPage()),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            appBar: AppBar(
+                              title: Text(pageName),
+                              leading: BackButton(),
+                            ),
+                            body: Center(
+                              child: Text('You are now in $pageName', style: TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
             ],

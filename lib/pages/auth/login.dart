@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
       });
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const home_page.HomePage()),
+        MaterialPageRoute(builder: (_) => home_page.HomePage()),
       );
     } on FirebaseAuthException catch (e) {
       setState(() {
