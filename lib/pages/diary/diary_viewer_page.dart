@@ -55,7 +55,23 @@ class DiaryViewerPage extends StatelessWidget {
               spacing: 8,
               children: [
                 ...entry.media.map((m) => m.type == 'image'
-                    ? Image.network(m.url, width: 60, height: 60)
+                    ? GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              child: InteractiveViewer(
+                                child: Container(
+                                  color: Colors.black,
+                                  child: Image.network(m.url, fit: BoxFit.contain),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Image.network(m.url, width: 60, height: 60),
+                      )
                     : Icon(Icons.videocam, size: 60)),
               ],
             ),

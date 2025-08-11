@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../diary/digital_diary_page.dart';
 import '../../widgets/home_panel_card.dart';
 import 'home_panel_grid.dart';
+import '../memory_album/memory_album_page.dart';
 import '../../services/diary_service.dart';
 
 class HomePage extends StatelessWidget {
@@ -37,6 +38,11 @@ class HomePage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const DigitalDiaryPage()),
+                      );
+                    } else if (route == '/memory_album') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => MemoryAlbumPage()),
                       );
                     } else {
                       Navigator.push(
