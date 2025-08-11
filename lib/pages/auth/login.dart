@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'routes.dart';
+import '../../routes.dart';
+import '../home/home_page.dart' as home_page;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,7 +31,10 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _loading = false;
       });
-      Navigator.pushReplacementNamed(context, Routes.home);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => home_page.HomePage()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message ?? 'Login failed';
