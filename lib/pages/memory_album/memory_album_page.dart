@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../models/folder_model.dart';
-import '../../services/folder_service.dart';
 import 'create_folder_dialog.dart';
 import 'folder_detail_page.dart';
+import '../../models/folder_model.dart';
+import '../../services/folder_service.dart';
 
 class MemoryAlbumPage extends StatelessWidget {
   final FolderService _folderService = FolderService();
@@ -12,10 +12,7 @@ class MemoryAlbumPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Center(child: Text('Not signed in'));
-    }
+    final userId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(),
@@ -28,75 +25,56 @@ class MemoryAlbumPage extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<List<FolderModel>>(
-        stream: _folderService.streamFolders(userId: user.uid),
+        stream: _folderService.streamFolders(userId: userId, parentFolderId: null),
         builder: (context, snapshot) {
           final folders = snapshot.data ?? [];
+          final items = [
+            // "+" card at the top left
+            GestureDetector(
+              onTap: () async {
+                await showDialog(
+                  context: context,
+                  builder: (_) => CreateFolderDialog(parentFolderId: null),
+                );
+              },
+              child: Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                elevation: 4,
+                child: const Center(
+                  child: Icon(Icons.add, size: 48, color: Colors.grey),
+                ),
+              ),
+            ),
+            ...folders.map((folder) => GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FolderDetailPage(folder: folder),
+                  ),
+                );
+              },
+              child: Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                elevation: 4,
+                child: Center(
+                  child: Text(
+                    folder.name,
+                    style: const TextStyle(fontSize: 24, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            )),
+          ];
           return GridView.count(
             crossAxisCount: 2,
             padding: const EdgeInsets.all(16),
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            children: [
-              // "+" card
-              GestureDetector(
-                onTap: () async {
-                  await showDialog(
-                    context: context,
-                    builder: (_) => CreateFolderDialog(parentFolderId: null),
-                  );
-                },
-                child: _FolderCard(
-                  name: '+',
-                  isAdd: true,
-                ),
-              ),
-              ...folders.map((folder) => GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => FolderDetailPage(folder: folder),
-                    ),
-                  );
-                },
-                child: _FolderCard(
-                  name: folder.name,
-                  coverImageUrl: folder.coverImageUrl,
-                ),
-              )),
-            ],
+            children: items,
           );
         },
-      ),
-    );
-  }
-}
-
-class _FolderCard extends StatelessWidget {
-  final String name;
-  final String? coverImageUrl;
-  final bool isAdd;
-
-  const _FolderCard({required this.name, this.coverImageUrl, this.isAdd = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      elevation: 4,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Center(
-          child: isAdd
-              ? const Icon(Icons.add, size: 48, color: Colors.grey)
-              : Text(
-                  name,
-                  style: const TextStyle(fontSize: 24, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-        ),
       ),
     );
   }

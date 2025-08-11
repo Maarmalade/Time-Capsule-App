@@ -46,23 +46,23 @@ class _DiaryEntryPageState extends State<DiaryEntryPage> {
       picked = await picker.pickVideo(source: ImageSource.gallery);
     }
     if (picked != null) {
-      debugPrint('Image picked: ' + picked!.path);
+      debugPrint('Image picked: ${picked!.path}');
       // Show local preview immediately
       setState(() {
         _media.add(DiaryMedia(url: picked!.path, type: type));
       });
       setState(() => _loading = true);
-      File fileToUpload = File(picked!.path);
+      File fileToUpload = File(picked.path);
       if (type == 'image') {
         // Compress image before upload
         final compressed = await FlutterImageCompress.compressWithFile(
-          picked!.path,
+          picked.path,
           minWidth: 800,
           minHeight: 800,
           quality: 70,
         );
         if (compressed != null) {
-          final tempPath = picked!.path + '_compressed.jpg';
+          final tempPath = '${picked!.path}_compressed.jpg';
           final compressedFile = await File(tempPath).writeAsBytes(compressed);
           fileToUpload = compressedFile;
         }
