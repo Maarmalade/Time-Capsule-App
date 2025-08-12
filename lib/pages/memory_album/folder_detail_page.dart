@@ -4,11 +4,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/folder_model.dart';
 import '../../models/media_file_model.dart';
+import '../../models/user_profile.dart';
 import '../../services/folder_service.dart';
 import '../../services/media_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/profile_picture_service.dart';
 import 'create_folder_dialog.dart';
 import 'media_viewer_page.dart';
+import '../../widgets/folder_card_widget.dart';
+import '../../widgets/media_card_widget.dart';
+import '../../widgets/edit_name_dialog.dart';
+import '../../widgets/confirmation_dialog.dart';
+import '../../widgets/multi_select_manager.dart';
+import '../../widgets/batch_action_bar.dart';
+import '../../widgets/profile_picture_widget.dart';
+import '../../routes.dart';
 
 class FolderDetailPage extends StatefulWidget {
   final FolderModel folder;
@@ -22,64 +32,282 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
   final FolderService _folderService = FolderService();
   final MediaService _mediaService = MediaService();
   final StorageService _storageService = StorageService();
+  final MultiSelectManager _multiSelectManager = MultiSelectManager();
+  final ProfilePictureService _profileService = ProfilePictureService();
+  UserProfile? _userProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _multiSelectManager.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await _profileService.getCurrentUserProfile();
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+        });
+      }
+    } catch (e) {
+      // Handle error silently - profile picture is not critical
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(),
-        title: Text(widget.folder.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<List<FolderModel>>(
-              stream: _folderService.streamFolders(
-                userId: FirebaseAuth.instance.currentUser!.uid,
-                parentFolderId: widget.folder.id,
-              ),
-              builder: (context, folderSnap) {
-                final subfolders = folderSnap.data ?? [];
-                return StreamBuilder<List<MediaFileModel>>(
-                  stream: _mediaService.streamMedia(widget.folder.id),
-                  builder: (context, mediaSnap) {
-                    final media = mediaSnap.data ?? [];
-                    final items = [
-                      // "+" card at the top left
-                      GestureDetector(
-                        onTap: () => _showAddMenu(context),
-                        child: Card(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                          elevation: 4,
-                          child: const Center(
-                            child: Icon(Icons.add, size: 48, color: Colors.grey),
-                          ),
-                        ),
+    return ListenableBuilder(
+      listenable: _multiSelectManager,
+      builder: (context, child) {
+        return Scaffold(
+          appBar: AppBar(
+            leading: _multiSelectManager.isMultiSelectMode
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _multiSelectManager.exitMultiSelectMode(),
+                )
+              : const BackButton(),
+            title: _multiSelectManager.isMultiSelectMode
+              ? Text('${_multiSelectManager.selectedCount} selected')
+              : Text(widget.folder.name),
+            actions: _multiSelectManager.isMultiSelectMode
+              ? []
+              : [
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, Routes.profile),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ProfilePictureWidget(
+                        userProfile: _userProfile,
+                        size: 32.0,
+                        showBorder: true,
                       ),
-                      ...subfolders.map((f) => _FolderCard(folder: f)),
-                      ...media.map((m) => _MediaCard(media: m)),
-                    ];
-                    return GridView.count(
-                      crossAxisCount: 2,
-                      padding: const EdgeInsets.all(16),
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      children: items,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.home),
+                    onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+                  ),
+                ],
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: StreamBuilder<List<FolderModel>>(
+                  stream: _folderService.streamFolders(
+                    userId: FirebaseAuth.instance.currentUser!.uid,
+                    parentFolderId: widget.folder.id,
+                  ),
+                  builder: (context, folderSnap) {
+                    final subfolders = folderSnap.data ?? [];
+                    return StreamBuilder<List<MediaFileModel>>(
+                      stream: _mediaService.streamMedia(widget.folder.id),
+                      builder: (context, mediaSnap) {
+                        final media = mediaSnap.data ?? [];
+                        final items = [
+                          // "+" card at the top left (hidden in multi-select mode)
+                          if (!_multiSelectManager.isMultiSelectMode)
+                            GestureDetector(
+                              onTap: () => _showAddMenu(context),
+                              child: Card(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                elevation: 4,
+                                child: const Center(
+                                  child: Icon(Icons.add, size: 48, color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                          ...subfolders.map((f) => FolderCardWidget(
+                            folder: f,
+                            isSelected: _multiSelectManager.isFolderSelected(f.id),
+                            isMultiSelectMode: _multiSelectManager.isMultiSelectMode,
+                            onTap: () => _handleFolderTap(f),
+                            onLongPress: () => _handleFolderLongPress(f),
+                            onEditName: () => _editFolderName(f),
+                            onDelete: () => _deleteFolder(f),
+                          )),
+                          ...media.map((m) => MediaCardWidget(
+                            media: m,
+                            isSelected: _multiSelectManager.isMediaSelected(m.id),
+                            isMultiSelectMode: _multiSelectManager.isMultiSelectMode,
+                            onTap: () => _handleMediaTap(m),
+                            onLongPress: () => _handleMediaLongPress(m),
+                            onEditName: () => _editMediaName(m),
+                            onDelete: () => _deleteMedia(m),
+                          )),
+                        ];
+                        return GridView.count(
+                          crossAxisCount: 2,
+                          padding: const EdgeInsets.all(16),
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          children: items,
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+              
+              // Batch action bar
+              if (_multiSelectManager.isMultiSelectMode)
+                BatchActionBar(
+                  selectedCount: _multiSelectManager.selectedCount,
+                  onDelete: _handleBatchDelete,
+                  onCancel: () => _multiSelectManager.exitMultiSelectMode(),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  // Multi-select handlers
+  void _handleFolderTap(FolderModel folder) {
+    if (_multiSelectManager.isMultiSelectMode) {
+      _multiSelectManager.toggleFolderSelection(folder.id);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => FolderDetailPage(folder: folder)),
+      );
+    }
+  }
+
+  void _handleFolderLongPress(FolderModel folder) {
+    if (!_multiSelectManager.isMultiSelectMode) {
+      _multiSelectManager.startWithFolder(folder.id);
+    }
+  }
+
+  void _handleMediaTap(MediaFileModel media) {
+    if (_multiSelectManager.isMultiSelectMode) {
+      _multiSelectManager.toggleMediaSelection(media.id);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
+      );
+    }
+  }
+
+  void _handleMediaLongPress(MediaFileModel media) {
+    if (!_multiSelectManager.isMultiSelectMode) {
+      _multiSelectManager.startWithMedia(media.id);
+    }
+  }
+
+  Future<void> _handleBatchDelete() async {
+    final selectedCount = _multiSelectManager.selectedCount;
+    final folderCount = _multiSelectManager.selectedFolderIds.length;
+    final mediaCount = _multiSelectManager.selectedMediaIds.length;
+    
+    // Create a more detailed confirmation message
+    String itemDescription;
+    if (folderCount > 0 && mediaCount > 0) {
+      itemDescription = '$folderCount folder(s) and $mediaCount file(s)';
+    } else if (folderCount > 0) {
+      itemDescription = '$folderCount folder(s)';
+    } else {
+      itemDescription = '$mediaCount file(s)';
+    }
+    
+    final confirmed = await ConfirmationDialog.show(
+      context: context,
+      title: 'Delete Items',
+      message: 'Are you sure you want to delete $itemDescription? This action cannot be undone and will delete all contents.',
+      confirmText: 'Delete',
+      confirmColor: Colors.red,
+      icon: Icons.delete_forever,
+    );
+
+    if (confirmed) {
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Deleting items...'),
+              ],
+            ),
+            duration: Duration(seconds: 30), // Long duration for deletion process
+          ),
+        );
+      }
+
+      try {
+        final List<String> errors = [];
+
+        // Delete selected folders using batch operation
+        if (_multiSelectManager.selectedFolderIds.isNotEmpty) {
+          try {
+            await _folderService.deleteFolders(_multiSelectManager.selectedFolderIds.toList());
+          } catch (e) {
+            errors.add('Folder deletion error: $e');
+          }
+        }
+
+        // Delete selected media using batch operation
+        if (_multiSelectManager.selectedMediaIds.isNotEmpty) {
+          try {
+            await _mediaService.deleteFiles(widget.folder.id, _multiSelectManager.selectedMediaIds.toList());
+          } catch (e) {
+            errors.add('File deletion error: $e');
+          }
+        }
+
+        _multiSelectManager.exitMultiSelectMode();
+
+        if (mounted) {
+          // Hide loading indicator
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          
+          if (errors.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$selectedCount item(s) deleted successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Deletion completed with some errors: ${errors.join('; ')}'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        _multiSelectManager.exitMultiSelectMode();
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete items: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _showAddMenu(BuildContext context) {
@@ -222,92 +450,121 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
     );
     await _mediaService.createMedia(widget.folder.id, media);
   }
-}
 
-class _FolderCard extends StatelessWidget {
-  final FolderModel folder;
-  const _FolderCard({required this.folder});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => FolderDetailPage(folder: folder)),
-        );
-      },
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 4,
-        child: Center(
-          child: Text(
-            folder.name,
-            style: const TextStyle(fontSize: 20, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ),
+  // Edit folder name functionality
+  Future<void> _editFolderName(FolderModel folder) async {
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => EditNameDialog(
+        currentName: folder.name,
+        title: 'Edit Folder Name',
+        hintText: 'Enter folder name',
       ),
     );
+
+    if (newName != null && newName.trim().isNotEmpty) {
+      try {
+        await _folderService.updateFolderName(folder.id, newName.trim());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Folder name updated successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update folder name: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  // Delete folder functionality
+  Future<void> _deleteFolder(FolderModel folder) async {
+    final confirmed = await ConfirmationDialog.show(
+      context: context,
+      title: 'Delete Folder',
+      message: 'Are you sure you want to delete "${folder.name}"? This action cannot be undone and will delete all contents.',
+      confirmText: 'Delete',
+      confirmColor: Colors.red,
+      icon: Icons.delete_forever,
+    );
+
+    if (confirmed) {
+      try {
+        await _folderService.deleteFolder(folder.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Folder deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete folder: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  // Edit media name functionality
+  Future<void> _editMediaName(MediaFileModel media) async {
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => EditNameDialog(
+        currentName: media.title ?? '',
+        title: 'Edit File Name',
+        hintText: 'Enter file name',
+      ),
+    );
+
+    if (newName != null && newName.trim().isNotEmpty) {
+      try {
+        await _mediaService.updateFileName(widget.folder.id, media.id, newName.trim());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File name updated successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update file name: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  // Delete media functionality
+  Future<void> _deleteMedia(MediaFileModel media) async {
+    final confirmed = await ConfirmationDialog.show(
+      context: context,
+      title: 'Delete File',
+      message: 'Are you sure you want to delete "${media.title ?? 'this file'}"? This action cannot be undone.',
+      confirmText: 'Delete',
+      confirmColor: Colors.red,
+      icon: Icons.delete_forever,
+    );
+
+    if (confirmed) {
+      try {
+        await _mediaService.deleteMedia(widget.folder.id, media.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('File deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete file: $e')),
+          );
+        }
+      }
+    }
   }
 }
 
-class _MediaCard extends StatelessWidget {
-  final MediaFileModel media;
-  const _MediaCard({required this.media});
-  @override
-  Widget build(BuildContext context) {
-    Widget content;
-    if (media.type == 'image') {
-      content = GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
-          );
-        },
-        child: Image.network(media.url, width: 60, height: 60),
-      );
-    } else if (media.type == 'video') {
-      content = GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
-          );
-        },
-        child: Icon(Icons.videocam, size: 60),
-      );
-    } else if (media.type == 'text') {
-      content = GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
-          );
-        },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              media.title ?? '',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              media.description ?? '',
-              style: const TextStyle(fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    } else {
-      content = const Icon(Icons.insert_drive_file, size: 60);
-    }
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      elevation: 4,
-      child: Center(child: content),
-    );
-  }
-}

@@ -5,6 +5,7 @@ import '../../models/diary_entry_model.dart';
 import '../../services/diary_service.dart';
 import 'diary_entry_page.dart';
 import 'diary_viewer_page.dart';
+import '../../routes.dart';
 
 
 
@@ -151,6 +152,12 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
       appBar: AppBar(
         leading: BackButton(),
         title: const Text('Digital Diary'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () => Navigator.pushNamed(context, Routes.profile),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

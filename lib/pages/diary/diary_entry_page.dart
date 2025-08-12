@@ -46,7 +46,7 @@ class _DiaryEntryPageState extends State<DiaryEntryPage> {
       picked = await picker.pickVideo(source: ImageSource.gallery);
     }
     if (picked != null) {
-      debugPrint('Image picked: ${picked!.path}');
+      debugPrint('Image picked: ${picked.path}');
       // Show local preview immediately
       setState(() {
         _media.add(DiaryMedia(url: picked!.path, type: type));
@@ -62,7 +62,7 @@ class _DiaryEntryPageState extends State<DiaryEntryPage> {
           quality: 70,
         );
         if (compressed != null) {
-          final tempPath = '${picked!.path}_compressed.jpg';
+          final tempPath = '${picked.path}_compressed.jpg';
           final compressedFile = await File(tempPath).writeAsBytes(compressed);
           fileToUpload = compressedFile;
         }
