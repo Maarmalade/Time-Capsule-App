@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,6 +13,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _usernameController = TextEditingController();
 
   String _error = '';
   bool _loading = false;
@@ -30,12 +31,26 @@ class _RegisterPageState extends State<RegisterPage> {
       });
       return;
     }
+    if (_usernameController.text.trim().isEmpty) {
+      setState(() {
+        _error = 'Username is required';
+        _loading = false;
+      });
+      return;
+    }
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // Save username to Firestore
+      await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+        'displayName': _usernameController.text.trim(),
+        'photoUrl': '',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       setState(() {
         _loading = false;
@@ -85,6 +100,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         style: TextStyle(fontSize: 22),
                       ),
                       const SizedBox(height: 32),
+                      _buildTextField(_usernameController, 'Enter Username'),
+                      const SizedBox(height: 16),
                       _buildTextField(_emailController, 'Enter Email'),
                       const SizedBox(height: 16),
                       _buildTextField(_passwordController, 'Enter Password', obscure: true),

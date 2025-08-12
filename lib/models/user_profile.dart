@@ -25,8 +25,12 @@ class UserProfile {
       email: data['email'] ?? '',
       username: data['username'] ?? '',
       profilePictureUrl: data['profilePictureUrl'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] is Timestamp && data['createdAt'] != null)
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp && data['updatedAt'] != null)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 
