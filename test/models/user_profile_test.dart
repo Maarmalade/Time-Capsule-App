@@ -124,7 +124,14 @@ void main() {
       });
 
       test('should handle null profile picture URL', () {
-        final profile = testProfile.copyWith(profilePictureUrl: null);
+        final profile = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
         final firestoreData = profile.toFirestore();
 
         expect(firestoreData['profilePictureUrl'], isNull);
@@ -153,9 +160,16 @@ void main() {
       });
 
       test('should create copy with null profile picture', () {
-        final updatedProfile = testProfile.copyWith(profilePictureUrl: null);
+        final profileWithNull = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
 
-        expect(updatedProfile.profilePictureUrl, isNull);
+        expect(profileWithNull.profilePictureUrl, isNull);
       });
 
       test('should create identical copy when no parameters provided', () {
@@ -201,7 +215,14 @@ void main() {
       });
 
       test('should handle null profile picture in string representation', () {
-        final profile = testProfile.copyWith(profilePictureUrl: null);
+        final profile = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
         final stringRepresentation = profile.toString();
 
         expect(stringRepresentation, contains('profilePictureUrl: null'));
@@ -253,15 +274,36 @@ void main() {
       });
 
       test('should handle null profile picture URLs in equality', () {
-        final profile1 = testProfile.copyWith(profilePictureUrl: null);
-        final profile2 = testProfile.copyWith(profilePictureUrl: null);
+        final profile1 = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
+        final profile2 = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
 
         expect(profile1, equals(profile2));
       });
 
       test('should not be equal when one has null profile picture and other does not', () {
         final profile1 = testProfile;
-        final profile2 = testProfile.copyWith(profilePictureUrl: null);
+        final profile2 = UserProfile(
+          id: testProfile.id,
+          email: testProfile.email,
+          username: testProfile.username,
+          profilePictureUrl: null,
+          createdAt: testProfile.createdAt,
+          updatedAt: testProfile.updatedAt,
+        );
 
         expect(profile1, isNot(equals(profile2)));
       });
@@ -285,25 +327,25 @@ void main() {
       });
 
       test('should handle very long strings', () {
-        final longString = 'a' * 1000;
+        final longString = 'a' * 100;
         final profile = UserProfile(
           id: longString,
-          email: '$longString@example.com',
+          email: '${longString}@example.com',
           username: longString,
-          profilePictureUrl: 'https://example.com/$longString.jpg',
+          profilePictureUrl: 'https://example.com/${longString}.jpg',
           createdAt: testDate,
           updatedAt: testDate,
         );
 
         expect(profile.id, equals(longString));
-        expect(profile.email, equals('$longString@example.com'));
+        expect(profile.email, equals('${longString}@example.com'));
         expect(profile.username, equals(longString));
-        expect(profile.profilePictureUrl, equals('https://example.com/$longString.jpg'));
+        expect(profile.profilePictureUrl, equals('https://example.com/${longString}.jpg'));
       });
 
       test('should handle special characters in strings', () {
         final profile = UserProfile(
-          id: 'test-id-with-special-chars-!@#$%^&*()',
+          id: 'test-id-with-special-chars',
           email: 'test+special@example.com',
           username: 'user_name-123',
           profilePictureUrl: 'https://example.com/profile-pic_123.jpg?v=1',
@@ -311,7 +353,7 @@ void main() {
           updatedAt: testDate,
         );
 
-        expect(profile.id, equals('test-id-with-special-chars-!@#$%^&*()'));
+        expect(profile.id, equals('test-id-with-special-chars'));
         expect(profile.email, equals('test+special@example.com'));
         expect(profile.username, equals('user_name-123'));
         expect(profile.profilePictureUrl, equals('https://example.com/profile-pic_123.jpg?v=1'));

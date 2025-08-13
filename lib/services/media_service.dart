@@ -5,8 +5,14 @@ import '../utils/error_handler.dart';
 import '../utils/validation_utils.dart';
 
 class MediaService {
-  final _firestore = FirebaseFirestore.instance;
-  final _storageService = StorageService();
+  final FirebaseFirestore _firestore;
+  final StorageService _storageService;
+
+  MediaService({
+    FirebaseFirestore? firestore,
+    StorageService? storageService,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+        _storageService = storageService ?? StorageService();
 
   // Create media file
   Future<String> createMedia(String folderId, MediaFileModel media) async {

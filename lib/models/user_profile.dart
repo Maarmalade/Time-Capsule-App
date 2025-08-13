@@ -20,10 +20,17 @@ class UserProfile {
   // Factory constructor to create UserProfile from Firestore document
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Handle both old 'displayName' and new 'username' field for backward compatibility
+    String username = data['username'] ?? '';
+    if (username.isEmpty && data['displayName'] != null) {
+      username = data['displayName'];
+    }
+
     return UserProfile(
       id: doc.id,
       email: data['email'] ?? '',
-      username: data['username'] ?? '',
+      username: username,
       profilePictureUrl: data['profilePictureUrl'],
       createdAt: (data['createdAt'] is Timestamp && data['createdAt'] != null)
           ? (data['createdAt'] as Timestamp).toDate()

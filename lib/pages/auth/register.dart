@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../routes.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,7 +13,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  final _usernameController = TextEditingController();
 
   String _error = '';
   bool _loading = false;
@@ -31,36 +30,22 @@ class _RegisterPageState extends State<RegisterPage> {
       });
       return;
     }
-    if (_usernameController.text.trim().isEmpty) {
-      setState(() {
-        _error = 'Username is required';
-        _loading = false;
-      });
-      return;
-    }
 
     try {
-      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      // Save username to Firestore
-      await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
-        'displayName': _usernameController.text.trim(),
-        'photoUrl': '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
 
       setState(() {
         _loading = false;
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created!')),
-      );
-      Navigator.pushReplacementNamed(context, '/');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Account created!')));
+      Navigator.pushReplacementNamed(context, Routes.usernameSetup);
     } on FirebaseAuthException catch (e) {
       setState(() {
         _error = e.message ?? 'Registration failed';
@@ -75,7 +60,10 @@ class _RegisterPageState extends State<RegisterPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 32.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -95,18 +83,21 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
-                        'Sign Up',
-                        style: TextStyle(fontSize: 22),
-                      ),
+                      const Text('Sign Up', style: TextStyle(fontSize: 22)),
                       const SizedBox(height: 32),
-                      _buildTextField(_usernameController, 'Enter Username'),
-                      const SizedBox(height: 16),
                       _buildTextField(_emailController, 'Enter Email'),
                       const SizedBox(height: 16),
-                      _buildTextField(_passwordController, 'Enter Password', obscure: true),
+                      _buildTextField(
+                        _passwordController,
+                        'Enter Password',
+                        obscure: true,
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField(_confirmController, 'Confirm Password', obscure: true),
+                      _buildTextField(
+                        _confirmController,
+                        'Confirm Password',
+                        obscure: true,
+                      ),
                       const SizedBox(height: 32),
                       if (_error.isNotEmpty)
                         Text(_error, style: const TextStyle(color: Colors.red)),
@@ -140,8 +131,11 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint,
-      {bool obscure = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint, {
+    bool obscure = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -160,7 +154,10 @@ class _RegisterPageState extends State<RegisterPage> {
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );

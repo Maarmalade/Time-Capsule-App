@@ -1,1 +1,34 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"time-capsule-app-51378","appId":"1:579471840996:android:b2b452240d6eca43c3fef1","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"time-capsule-app-51378","configurations":{"android":"1:579471840996:android:b2b452240d6eca43c3fef1"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "time-capsule-app-51378",
+          "appId": "1:579471840996:android:b2b452240d6eca43c3fef1",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "time-capsule-app-51378",
+          "configurations": {
+            "android": "1:579471840996:android:b2b452240d6eca43c3fef1"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
