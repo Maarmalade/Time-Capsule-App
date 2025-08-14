@@ -95,7 +95,7 @@ void main() {
           .thenAnswer((_) => Stream.value([testFolder]));
       when(mockFolderService.updateFolderName(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(
@@ -172,7 +172,7 @@ void main() {
           .thenAnswer((_) => Stream.value(testFolders));
       when(mockFolderService.deleteFolders(any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(
@@ -264,11 +264,11 @@ void main() {
           .thenAnswer((_) => Stream.value(testMedia));
       when(mockMediaService.updateFileName(any, any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
       when(mockMediaService.deleteFiles(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(

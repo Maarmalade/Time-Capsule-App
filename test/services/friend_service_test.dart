@@ -7,7 +7,6 @@ import 'package:time_capsule/services/friend_service.dart';
 import 'package:time_capsule/utils/friend_validation_utils.dart';
 import 'package:time_capsule/models/friend_request_model.dart';
 import 'package:time_capsule/models/friendship_model.dart';
-import 'package:time_capsule/models/user_profile.dart';
 
 import 'friend_service_test.mocks.dart';
 

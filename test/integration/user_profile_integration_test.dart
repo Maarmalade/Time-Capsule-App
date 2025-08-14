@@ -325,7 +325,7 @@ void main() {
       when(userProfileService.getCurrentUserProfile())
           .thenAnswer((_) async => testProfile);
       when(mockAuth.signOut()).thenAnswer((_) async {
-        return null;
+        return;
       });
 
       await tester.pumpWidget(

@@ -8,7 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/profile_picture_service.dart';
 import '../../models/user_profile.dart';
 import '../../widgets/profile_picture_widget.dart';
-import '../../routes.dart';
+import '../../constants/route_constants.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -108,7 +108,8 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pushNamed(context, Routes.profile),
+                        onTap: () =>
+                            Navigator.pushNamed(context, Routes.profile),
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: ProfilePictureWidget(
@@ -132,7 +133,10 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 Icon(Icons.logout, color: Colors.red),
                                 SizedBox(width: 8),
-                                Text('Logout', style: TextStyle(color: Colors.red)),
+                                Text(
+                                  'Logout',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ],
                             ),
                           ),
@@ -157,13 +161,21 @@ class _HomePageState extends State<HomePage> {
                     if (route == '/digital_diary') {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const DigitalDiaryPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const DigitalDiaryPage(),
+                        ),
                       );
                     } else if (route == '/memory_album') {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => MemoryAlbumPage()),
                       );
+                    } else if (route == '/friends') {
+                      Navigator.pushNamed(context, Routes.friends);
+                    } else if (route == '/scheduled_messages') {
+                      Navigator.pushNamed(context, Routes.scheduledMessages);
+                    } else if (route == '/public_folders') {
+                      Navigator.pushNamed(context, Routes.publicFolders);
                     } else {
                       Navigator.push(
                         context,
@@ -174,7 +186,10 @@ class _HomePageState extends State<HomePage> {
                               leading: BackButton(),
                             ),
                             body: Center(
-                              child: Text('You are now in $pageName', style: TextStyle(fontSize: 24)),
+                              child: Text(
+                                'You are now in $pageName',
+                                style: TextStyle(fontSize: 24),
+                              ),
                             ),
                           ),
                         ),

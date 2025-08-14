@@ -438,3 +438,70 @@ exports.retryFailedMessages = onCall({
     throw error;
   }
 });
+
+/**
+ * Manual trigger function to process pending messages immediately
+ * This is useful for testing and manual intervention
+ */
+exports.triggerMessageDelivery = onCall({
+  memory: "256MiB",
+}, async (request) => {
+  // Verify user is authenticated
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+  
+  try {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    
+    // Query for pending messages that are ready for delivery
+    const readyMessages = await db.collection('scheduledMessages')
+      .where('status', '==', 'pending')
+      .where('scheduledFor', '<=', now)
+      .limit(50) // Process in batches to avoid timeouts
+      .get();
+    
+    if (readyMessages.empty) {
+      return { message: "No messages ready for delivery", processedCount: 0 };
+    }
+    
+    logger.info(`Found ${readyMessages.docs.length} messages ready for delivery`);
+    
+    let processedCount = 0;
+    let failedCount = 0;
+    
+    // Process each message
+    for (const doc of readyMessages.docs) {
+      const messageData = doc.data();
+      const messageId = doc.id;
+      
+      try {
+        await deliverMessage(messageId, messageData);
+        processedCount++;
+        logger.info(`Successfully delivered message ${messageId}`);
+      } catch (error) {
+        failedCount++;
+        logger.error(`Failed to deliver message ${messageId}:`, error);
+        
+        // Update message status to failed
+        await doc.ref.update({
+          status: 'failed',
+          failureReason: error.message,
+          failedAt: admin.firestore.Timestamp.now(),
+        });
+      }
+    }
+    
+    return { 
+      message: `Processed ${processedCount} messages, ${failedCount} failed`,
+      processedCount: processedCount,
+      failedCount: failedCount,
+      totalFound: readyMessages.docs.length,
+    };
+    
+  } catch (error) {
+    logger.error("Error in manual trigger function:", error);
+    throw error;
+  }
+});

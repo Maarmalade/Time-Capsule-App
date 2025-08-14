@@ -330,17 +330,17 @@ void main() {
         final longString = 'a' * 100;
         final profile = UserProfile(
           id: longString,
-          email: '${longString}@example.com',
+          email: '$longString@example.com',
           username: longString,
-          profilePictureUrl: 'https://example.com/${longString}.jpg',
+          profilePictureUrl: 'https://example.com/$longString.jpg',
           createdAt: testDate,
           updatedAt: testDate,
         );
 
         expect(profile.id, equals(longString));
-        expect(profile.email, equals('${longString}@example.com'));
+        expect(profile.email, equals('$longString@example.com'));
         expect(profile.username, equals(longString));
-        expect(profile.profilePictureUrl, equals('https://example.com/${longString}.jpg'));
+        expect(profile.profilePictureUrl, equals('https://example.com/$longString.jpg'));
       });
 
       test('should handle special characters in strings', () {

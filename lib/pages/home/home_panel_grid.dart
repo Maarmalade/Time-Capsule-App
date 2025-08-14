@@ -26,8 +26,16 @@ class HomePanelGrid extends StatelessWidget {
             onTap: () => navigate(context, '/memory_album', 'Memory Album'),
           ),
           HomePanelCard(
-            text: 'Sent Time Leap Messages',
-            onTap: () => navigate(context, '/time_leap_messages', 'Time Leap Messages'),
+            text: 'Friends',
+            onTap: () => navigate(context, '/friends', 'Friends'),
+          ),
+          HomePanelCard(
+            text: 'Scheduled Messages',
+            onTap: () => navigate(context, '/scheduled_messages', 'Scheduled Messages'),
+          ),
+          HomePanelCard(
+            text: 'Public Folders',
+            onTap: () => navigate(context, '/public_folders', 'Public Folders'),
           ),
           HomePanelCard(
             text: 'Take Digital Diary',

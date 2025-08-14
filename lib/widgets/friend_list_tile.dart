@@ -8,6 +8,8 @@ class FriendListTile extends StatelessWidget {
   final Widget? trailing;
   final bool showOnlineStatus;
   final bool isOnline;
+  final bool showRemoveOption;
+  final VoidCallback? onRemove;
 
   const FriendListTile({
     super.key,
@@ -16,6 +18,8 @@ class FriendListTile extends StatelessWidget {
     this.trailing,
     this.showOnlineStatus = false,
     this.isOnline = false,
+    this.showRemoveOption = false,
+    this.onRemove,
   });
 
   @override

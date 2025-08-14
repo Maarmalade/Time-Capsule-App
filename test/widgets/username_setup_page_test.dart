@@ -115,7 +115,7 @@ void main() {
     testWidgets('should trim whitespace from username', (WidgetTester tester) async {
       when(mockUserProfileService.createUserProfile(any, any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(createTestWidget());

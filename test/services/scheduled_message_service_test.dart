@@ -841,7 +841,7 @@ void main() {
         final timeUntilDelivery = message.getTimeUntilDelivery();
         expect(timeUntilDelivery, isNotNull);
         expect(timeUntilDelivery!.inHours, greaterThan(0)); // Should be positive
-        expect(timeUntilDelivery!.inHours, lessThanOrEqualTo(2)); // Should be at most 2 hours
+        expect(timeUntilDelivery.inHours, lessThanOrEqualTo(2)); // Should be at most 2 hours
       });
 
       test('should return null time until delivery for past messages', () {

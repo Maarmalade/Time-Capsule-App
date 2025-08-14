@@ -4,7 +4,6 @@ import 'package:mockito/annotations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:time_capsule/services/folder_service.dart';
 import 'package:time_capsule/services/media_service.dart';
-import 'package:time_capsule/models/folder_model.dart';
 
 // Generate mocks
 @GenerateMocks([

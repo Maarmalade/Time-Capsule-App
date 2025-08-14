@@ -115,7 +115,7 @@ void main() {
     testWidgets('should show success message when username is updated', (WidgetTester tester) async {
       when(mockUserProfileService.updateUsername(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(createTestWidget());
@@ -131,7 +131,7 @@ void main() {
     testWidgets('should trim whitespace from username', (WidgetTester tester) async {
       when(mockUserProfileService.updateUsername(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(createTestWidget());

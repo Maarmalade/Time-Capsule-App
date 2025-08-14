@@ -25,6 +25,48 @@ class MediaService {
     return ref.id;
   }
 
+  // Create media file with contributor attribution for shared folders
+  Future<String> createMediaWithAttribution(
+    String folderId, 
+    MediaFileModel media, 
+    String contributorId,
+    bool isSharedFolder,
+  ) async {
+    try {
+      if (folderId.isEmpty) {
+        throw Exception('Folder ID is required');
+      }
+
+      if (contributorId.isEmpty) {
+        throw Exception('Contributor ID is required');
+      }
+
+      final ref = _firestore
+          .collection('folders')
+          .doc(folderId)
+          .collection('media')
+          .doc();
+
+      // Create media data with contributor attribution
+      final mediaData = media.toMap();
+      
+      if (isSharedFolder) {
+        mediaData['uploadedBy'] = contributorId;
+        mediaData['uploadedAt'] = Timestamp.fromDate(DateTime.now());
+      }
+
+      await ref.set(mediaData);
+      return ref.id;
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Failed to create media with attribution: ${ErrorHandler.getErrorMessage(e)}');
+    }
+  }
+
   // Update media file
   Future<void> updateMedia(String folderId, String mediaId, Map<String, dynamic> data) async {
     await _firestore

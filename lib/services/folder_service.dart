@@ -1,19 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/folder_model.dart' as folder_model;
 import '../models/shared_folder_data.dart';
 import 'media_service.dart';
+import '../utils/social_validation_utils.dart';
+import '../utils/social_error_handler.dart';
+import '../utils/rate_limiter.dart';
 import '../utils/error_handler.dart';
 import '../utils/validation_utils.dart';
 
 class FolderService {
   final FirebaseFirestore _firestore;
   final MediaService _mediaService;
+  final FirebaseAuth _auth;
 
   FolderService({
     FirebaseFirestore? firestore,
     MediaService? mediaService,
+    FirebaseAuth? auth,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-        _mediaService = mediaService ?? MediaService();
+       _mediaService = mediaService ?? MediaService(),
+       _auth = auth ?? FirebaseAuth.instance;
 
   // Create folder
   Future<String> createFolder(folder_model.FolderModel folder) async {
@@ -40,7 +47,9 @@ class FolderService {
         name: sanitizedName,
         userId: folder.userId,
         parentFolderId: folder.parentFolderId,
-        description: folder.description != null ? ValidationUtils.sanitizeText(folder.description!) : null,
+        description: folder.description != null
+            ? ValidationUtils.sanitizeText(folder.description!)
+            : null,
         coverImageUrl: folder.coverImageUrl,
         createdAt: folder.createdAt,
       );
@@ -52,7 +61,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to create folder: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to create folder: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -69,7 +80,10 @@ class FolderService {
       }
 
       // Check if folder exists
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         return; // Folder already deleted
       }
@@ -79,23 +93,23 @@ class FolderService {
           .collection('folders')
           .where('parentFolderId', isEqualTo: folderId)
           .get();
-      
+
       for (final doc in subfolders.docs) {
         await deleteFolder(doc.id);
       }
-      
+
       // Delete all media in this folder (with proper storage cleanup)
       final media = await _firestore
           .collection('folders')
           .doc(folderId)
           .collection('media')
           .get();
-      
+
       if (media.docs.isNotEmpty) {
         final mediaIds = media.docs.map((doc) => doc.id).toList();
         await _mediaService.deleteFiles(folderId, mediaIds);
       }
-      
+
       // Delete the folder itself
       await _firestore.collection('folders').doc(folderId).delete();
     } on FirebaseException catch (e) {
@@ -104,22 +118,33 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to delete folder: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to delete folder: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
   // Stream folders (top-level or nested)
-  Stream<List<folder_model.FolderModel>> streamFolders({required String userId, String? parentFolderId}) {
-    Query query = _firestore.collection('folders').where('userId', isEqualTo: userId);
+  Stream<List<folder_model.FolderModel>> streamFolders({
+    required String userId,
+    String? parentFolderId,
+  }) {
+    Query query = _firestore
+        .collection('folders')
+        .where('userId', isEqualTo: userId);
     if (parentFolderId == null) {
       query = query.where('parentFolderId', isNull: true);
     } else {
       query = query.where('parentFolderId', isEqualTo: parentFolderId);
     }
     return query
-      .orderBy('createdAt', descending: false)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => folder_model.FolderModel.fromDoc(d)).toList());
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map(
+          (snap) => snap.docs
+              .map((d) => folder_model.FolderModel.fromDoc(d))
+              .toList(),
+        );
   }
 
   // Get a folder by ID
@@ -158,7 +183,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to update folder name: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to update folder name: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -174,24 +201,30 @@ class FolderService {
       // For batch folder deletion, we need to handle each folder individually
       // to ensure proper cleanup of nested content and storage files
       final List<String> errors = [];
-      
+
       for (final folderId in folderIds) {
         try {
           await deleteFolder(folderId);
         } catch (e) {
-          errors.add('Failed to delete folder $folderId: ${ErrorHandler.getErrorMessage(e)}');
+          errors.add(
+            'Failed to delete folder $folderId: ${ErrorHandler.getErrorMessage(e)}',
+          );
         }
       }
-      
+
       // If there were any errors, throw an exception with details
       if (errors.isNotEmpty) {
-        throw Exception('Some folders could not be deleted:\n${errors.join('\n')}');
+        throw Exception(
+          'Some folders could not be deleted:\n${errors.join('\n')}',
+        );
       }
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to delete folders: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to delete folders: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -203,37 +236,41 @@ class FolderService {
     List<String> contributorIds,
   ) async {
     try {
-      // Validate folder data
-      final nameError = ValidationUtils.validateFileName(folder.name);
-      if (nameError != null) {
-        throw Exception(nameError);
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to create shared folders');
       }
 
-      if (folder.userId.isEmpty) {
-        throw Exception('User ID is required');
+      // Check rate limiting
+      if (!SocialRateLimiters.canModifySharedFolder(currentUser.uid)) {
+        throw Exception(
+          'Too many shared folder operations. Please wait before creating another shared folder.',
+        );
       }
 
-      // Validate contributor IDs
-      if (contributorIds.isEmpty) {
-        throw Exception('At least one contributor is required for shared folders');
+      // Validate folder name
+      final folderNameValidation = SocialValidationUtils.validateFolderName(
+        folder.name,
+      );
+      if (folderNameValidation.hasError) {
+        throw Exception(folderNameValidation.errorMessage);
       }
 
-      // Remove duplicates and owner from contributors
+      // Validate shared folder contributors
+      final contributorValidation =
+          SocialValidationUtils.validateSharedFolderContributors(
+            ownerId: folder.userId,
+            contributorIds: contributorIds,
+          );
+      if (contributorValidation.hasError) {
+        throw Exception(contributorValidation.errorMessage);
+      }
+
+      final sanitizedName = folderNameValidation.data as String;
       final uniqueContributors = contributorIds.toSet().toList();
-      uniqueContributors.remove(folder.userId);
-
-      if (uniqueContributors.isEmpty) {
-        throw Exception('Contributors cannot include the folder owner');
-      }
-
-      // Sanitize folder name
-      final sanitizedName = ValidationUtils.sanitizeText(folder.name);
-      if (!ValidationUtils.isSafeForDisplay(sanitizedName)) {
-        throw Exception('Folder name contains invalid characters');
-      }
 
       final ref = _firestore.collection('folders').doc();
-      
+
       // Create shared folder data
       final sharedData = SharedFolderData(
         contributorIds: uniqueContributors,
@@ -247,7 +284,9 @@ class FolderService {
         'name': sanitizedName,
         'userId': folder.userId,
         'parentFolderId': folder.parentFolderId,
-        'description': folder.description != null ? ValidationUtils.sanitizeText(folder.description!) : null,
+        'description': folder.description != null
+            ? ValidationUtils.sanitizeText(folder.description!)
+            : null,
         'coverImageUrl': folder.coverImageUrl,
         'createdAt': folder.createdAt,
         'isShared': true,
@@ -255,14 +294,106 @@ class FolderService {
       };
 
       await ref.set(folderData);
+
+      // Record the shared folder creation for rate limiting
+      SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
+
       return ref.id;
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
+      throw Exception(SocialErrorHandler.getSharedFolderErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to create shared folder: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to create shared folder: ${SocialErrorHandler.getSharedFolderErrorMessage(e)}',
+      );
+    }
+  }
+
+  // Convert a regular folder to a shared folder
+  Future<void> convertToSharedFolder(
+    String folderId,
+    List<String> contributorIds,
+  ) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to convert folders');
+      }
+
+      if (folderId.isEmpty) {
+        throw Exception('Folder ID is required');
+      }
+
+      // Check rate limiting
+      if (!SocialRateLimiters.canModifySharedFolder(currentUser.uid)) {
+        throw Exception(
+          'Too many shared folder operations. Please wait before creating another shared folder.',
+        );
+      }
+
+      // Get current folder data
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
+      if (!folderDoc.exists) {
+        throw Exception('Folder not found');
+      }
+
+      final folderData = folderDoc.data() as Map<String, dynamic>;
+      final isShared = folderData['isShared'] ?? false;
+
+      if (isShared) {
+        throw Exception('Folder is already shared');
+      }
+
+      // Validate that the current user is the owner
+      final userId = folderData['userId'];
+      if (userId != currentUser.uid) {
+        throw Exception(
+          'Only the folder owner can convert it to a shared folder',
+        );
+      }
+
+      // Validate shared folder contributors
+      final contributorValidation =
+          SocialValidationUtils.validateSharedFolderContributors(
+            ownerId: currentUser.uid,
+            contributorIds: contributorIds,
+          );
+      if (contributorValidation.hasError) {
+        throw Exception(contributorValidation.errorMessage);
+      }
+
+      final uniqueContributors = contributorIds.toSet().toList();
+
+      // Create shared folder data
+      final sharedData = SharedFolderData(
+        contributorIds: uniqueContributors,
+        ownerId: currentUser.uid,
+        isLocked: false,
+        isPublic: false,
+      );
+
+      // Update the folder to be shared
+      await _firestore.collection('folders').doc(folderId).update({
+        'isShared': true,
+        ...sharedData.toMap(),
+      });
+
+      // Record the shared folder creation for rate limiting
+      SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
+    } on FirebaseException catch (e) {
+      throw Exception(SocialErrorHandler.getSharedFolderErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to convert folder to shared: ${SocialErrorHandler.getSharedFolderErrorMessage(e)}',
+      );
     }
   }
 
@@ -278,36 +409,42 @@ class FolderService {
       }
 
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
       final folderData = folderDoc.data() as Map<String, dynamic>;
       final isShared = folderData['isShared'] ?? false;
-      
+
       if (!isShared) {
         throw Exception('Cannot invite contributors to a non-shared folder');
       }
 
       final sharedData = SharedFolderData.fromMap(folderData);
-      
+
       if (sharedData.isLocked) {
         throw Exception('Cannot invite contributors to a locked folder');
       }
 
       // Add new contributors (avoiding duplicates and owner)
       final currentContributors = Set<String>.from(sharedData.contributorIds);
-      final newContributors = userIds.where((id) => 
-        id != sharedData.ownerId && !currentContributors.contains(id)
-      ).toList();
+      final newContributors = userIds
+          .where(
+            (id) =>
+                id != sharedData.ownerId && !currentContributors.contains(id),
+          )
+          .toList();
 
       if (newContributors.isEmpty) {
         return; // No new contributors to add
       }
 
       final updatedContributors = [...currentContributors, ...newContributors];
-      
+
       await _firestore.collection('folders').doc(folderId).update({
         'contributorIds': updatedContributors,
       });
@@ -317,7 +454,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to invite contributors: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to invite contributors: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -333,20 +472,23 @@ class FolderService {
       }
 
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
       final folderData = folderDoc.data() as Map<String, dynamic>;
       final isShared = folderData['isShared'] ?? false;
-      
+
       if (!isShared) {
         throw Exception('Cannot remove contributors from a non-shared folder');
       }
 
       final sharedData = SharedFolderData.fromMap(folderData);
-      
+
       if (userId == sharedData.ownerId) {
         throw Exception('Cannot remove the folder owner');
       }
@@ -357,7 +499,7 @@ class FolderService {
 
       final updatedContributors = List<String>.from(sharedData.contributorIds)
         ..remove(userId);
-      
+
       await _firestore.collection('folders').doc(folderId).update({
         'contributorIds': updatedContributors,
       });
@@ -367,7 +509,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to remove contributor: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to remove contributor: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -379,14 +523,17 @@ class FolderService {
       }
 
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
       final folderData = folderDoc.data() as Map<String, dynamic>;
       final isShared = folderData['isShared'] ?? false;
-      
+
       if (!isShared) {
         throw Exception('Cannot lock a non-shared folder');
       }
@@ -401,7 +548,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to lock folder: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to lock folder: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -413,14 +562,17 @@ class FolderService {
       }
 
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
       final folderData = folderDoc.data() as Map<String, dynamic>;
       final isShared = folderData['isShared'] ?? false;
-      
+
       if (!isShared) {
         throw Exception('Cannot unlock a non-shared folder');
       }
@@ -435,7 +587,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to unlock folder: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to unlock folder: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -446,14 +600,17 @@ class FolderService {
         throw Exception('Folder ID is required');
       }
 
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         return null;
       }
 
       final folderData = folderDoc.data() as Map<String, dynamic>;
       final isShared = folderData['isShared'] ?? false;
-      
+
       if (!isShared) {
         return null;
       }
@@ -465,7 +622,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to get shared folder data: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to get shared folder data: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -478,7 +637,7 @@ class FolderService {
         final folder = await getFolder(folderId);
         return folder?.userId == userId;
       }
-      
+
       return sharedData.canContribute(userId);
     } catch (e) {
       return false;
@@ -494,7 +653,7 @@ class FolderService {
         final folder = await getFolder(folderId);
         return folder?.userId == userId;
       }
-      
+
       return sharedData.canView(userId);
     } catch (e) {
       return false;
@@ -503,13 +662,13 @@ class FolderService {
 
   // Stream folders that user can access (owned, contributed to, or public)
   Stream<List<folder_model.FolderModel>> streamAccessibleFolders({
-    required String userId, 
+    required String userId,
     String? parentFolderId,
     bool includeShared = true,
     bool includePublic = true,
   }) {
     Query query = _firestore.collection('folders');
-    
+
     if (parentFolderId == null) {
       query = query.where('parentFolderId', isNull: true);
     } else {
@@ -519,32 +678,42 @@ class FolderService {
     // Build compound query for accessible folders
     if (includeShared && includePublic) {
       // User owns, contributes to, or folder is public
-      query = query.where(Filter.or(
-        Filter('userId', isEqualTo: userId),
-        Filter('contributorIds', arrayContains: userId),
-        Filter('isPublic', isEqualTo: true),
-      ));
+      query = query.where(
+        Filter.or(
+          Filter('userId', isEqualTo: userId),
+          Filter('contributorIds', arrayContains: userId),
+          Filter('isPublic', isEqualTo: true),
+        ),
+      );
     } else if (includeShared) {
       // User owns or contributes to
-      query = query.where(Filter.or(
-        Filter('userId', isEqualTo: userId),
-        Filter('contributorIds', arrayContains: userId),
-      ));
+      query = query.where(
+        Filter.or(
+          Filter('userId', isEqualTo: userId),
+          Filter('contributorIds', arrayContains: userId),
+        ),
+      );
     } else if (includePublic) {
       // User owns or folder is public
-      query = query.where(Filter.or(
-        Filter('userId', isEqualTo: userId),
-        Filter('isPublic', isEqualTo: true),
-      ));
+      query = query.where(
+        Filter.or(
+          Filter('userId', isEqualTo: userId),
+          Filter('isPublic', isEqualTo: true),
+        ),
+      );
     } else {
       // Only owned folders
       query = query.where('userId', isEqualTo: userId);
     }
 
     return query
-      .orderBy('createdAt', descending: false)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) => folder_model.FolderModel.fromDoc(d)).toList());
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map(
+          (snap) => snap.docs
+              .map((d) => folder_model.FolderModel.fromDoc(d))
+              .toList(),
+        );
   }
 
   // ========== PUBLIC FOLDER FUNCTIONALITY ==========
@@ -552,26 +721,71 @@ class FolderService {
   // Make folder public
   Future<void> makePublic(String folderId) async {
     try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to make folders public');
+      }
+
       if (folderId.isEmpty) {
         throw Exception('Folder ID is required');
       }
 
+      // Check rate limiting
+      if (!SocialRateLimiters.canModifyPublicFolder(currentUser.uid)) {
+        throw Exception(
+          'Too many public folder operations. Please wait before making another folder public.',
+        );
+      }
+
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
+      }
+
+      final folderData = folderDoc.data() as Map<String, dynamic>;
+
+      // Verify user is the owner
+      if (folderData['userId'] != currentUser.uid) {
+        throw Exception('Only the folder owner can make folders public');
+      }
+
+      // Get user's current public folder count for validation
+      final userPublicFolders = await _firestore
+          .collection('folders')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('isPublic', isEqualTo: true)
+          .get();
+
+      // Validate public folder creation
+      final validationResult =
+          SocialValidationUtils.validatePublicFolderCreation(
+            userId: currentUser.uid,
+            userPublicFolderCount: userPublicFolders.docs.length,
+          );
+
+      if (validationResult.hasError) {
+        throw Exception(validationResult.errorMessage);
       }
 
       await _firestore.collection('folders').doc(folderId).update({
         'isPublic': true,
       });
+
+      // Record the public folder modification for rate limiting
+      SocialRateLimiters.recordPublicFolderModification(currentUser.uid);
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
+      throw Exception(SocialErrorHandler.getPublicFolderErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to make folder public: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to make folder public: ${SocialErrorHandler.getPublicFolderErrorMessage(e)}',
+      );
     }
   }
 
@@ -583,7 +797,10 @@ class FolderService {
       }
 
       // Get current folder data
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
@@ -597,7 +814,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to make folder private: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to make folder private: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -620,15 +839,21 @@ class FolderService {
       query = query.limit(limit);
 
       final snapshot = await query.get();
-      var folders = snapshot.docs.map((d) => folder_model.FolderModel.fromDoc(d)).toList();
+      var folders = snapshot.docs
+          .map((d) => folder_model.FolderModel.fromDoc(d))
+          .toList();
 
       // Apply client-side search filter if provided
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final lowercaseQuery = searchQuery.toLowerCase();
-        folders = folders.where((folder) =>
-          folder.name.toLowerCase().contains(lowercaseQuery) ||
-          (folder.description?.toLowerCase().contains(lowercaseQuery) ?? false)
-        ).toList();
+        folders = folders
+            .where(
+              (folder) =>
+                  folder.name.toLowerCase().contains(lowercaseQuery) ||
+                  (folder.description?.toLowerCase().contains(lowercaseQuery) ??
+                      false),
+            )
+            .toList();
       }
 
       return folders;
@@ -638,7 +863,9 @@ class FolderService {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to get public folders: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception(
+        'Failed to get public folders: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -654,15 +881,21 @@ class FolderService {
         .limit(limit);
 
     return query.snapshots().map((snap) {
-      var folders = snap.docs.map((d) => folder_model.FolderModel.fromDoc(d)).toList();
+      var folders = snap.docs
+          .map((d) => folder_model.FolderModel.fromDoc(d))
+          .toList();
 
       // Apply client-side search filter if provided
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final lowercaseQuery = searchQuery.toLowerCase();
-        folders = folders.where((folder) =>
-          folder.name.toLowerCase().contains(lowercaseQuery) ||
-          (folder.description?.toLowerCase().contains(lowercaseQuery) ?? false)
-        ).toList();
+        folders = folders
+            .where(
+              (folder) =>
+                  folder.name.toLowerCase().contains(lowercaseQuery) ||
+                  (folder.description?.toLowerCase().contains(lowercaseQuery) ??
+                      false),
+            )
+            .toList();
       }
 
       return folders;
@@ -676,7 +909,10 @@ class FolderService {
         return false;
       }
 
-      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
       if (!folderDoc.exists) {
         return false;
       }

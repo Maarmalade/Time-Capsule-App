@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions for authentication and validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUsername(username) {
+      return username is string && 
+             username.size() >= 3 && 
+             username.size() <= 30 &&
+             username.matches('^[a-zA-Z0-9_]+$');
+    }
+    
+    // Users collection - extended for social features
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) && 
+                      (request.resource.data.keys().hasAll(['email', 'username']) &&
+                       isValidUsername(request.resource.data.username));
+    }
+    
+    // Friend Requests collection
+    match /friendRequests/{requestId} {
+      // Users can read their own sent or received friend requests
+      allow read: if isAuthenticated() && 
+                     (resource.data.senderId == request.auth.uid || 
+                      resource.data.receiverId == request.auth.uid);
+      
+      // Users can create friend requests where they are the sender
+      allow create: if isAuthenticated() && 
+                       request.resource.data.senderId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['senderId', 'receiverId', 'senderUsername', 'status', 'createdAt']) &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.senderId != request.resource.data.receiverId;
+      
+      // Users can update friend requests where they are the receiver (accept/decline)
+      allow update: if isAuthenticated() && 
+                       resource.data.receiverId == request.auth.uid &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.status in ['accepted', 'declined'] &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']);
+      
+      // No delete operations allowed - maintain audit trail
+      allow delete: if false;
+    }
+    
+    // Friendships collection
+    match /friendships/{friendshipId} {
+      // Users can read friendships where they are one of the participants
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId1 == request.auth.uid || 
+                      resource.data.userId2 == request.auth.uid);
+      
+      // Only the system (via Cloud Functions) can create friendships
+      // This prevents direct manipulation of friendship records
+      allow create: if false;
+      
+      // No updates allowed - friendships are immutable once created
+      allow update: if false;
+      
+      // Users can delete friendships where they are one of the participants
+      allow delete: if isAuthenticated() && 
+                       (resource.data.userId1 == request.auth.uid || 
+                        resource.data.userId2 == request.auth.uid);
+    }    
+
+    // Helper functions for folder access control
+    function isContributor(folderId) {
+      return isAuthenticated() && 
+             request.auth.uid in resource.data.contributorIds;
+    }
+    
+    function isFolderOwner(folderId) {
+      return isAuthenticated() && 
+             request.auth.uid == resource.data.userId;
+    }
+    
+    function canAccessFolder() {
+      return isFolderOwner(resource.id) || 
+             isContributor(resource.id) || 
+             resource.data.isPublic == true;
+    }
+    
+    function canModifyFolder() {
+      return isFolderOwner(resource.id) || 
+             (isContributor(resource.id) && resource.data.isLocked != true);
+    }
+    
+    // Folders collection - extended for shared and public functionality
+    match /folders/{folderId} {
+      // Read access: owner, contributors, or anyone if public
+      allow read: if isAuthenticated() && canAccessFolder();
+      
+      // Create access: authenticated users can create their own folders
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['name', 'userId', 'createdAt']);
+      
+      // Update access: owner can always update, contributors can update if not locked
+      allow update: if isAuthenticated() && canModifyFolder() &&
+                       // Prevent contributors from changing critical folder settings
+                       (isFolderOwner(folderId) || 
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'coverImageUrl']));
+      
+      // Delete access: only owner can delete
+      allow delete: if isAuthenticated() && isFolderOwner(folderId);
+      
+      // Media subcollection within folders
+      match /media/{mediaId} {
+        // Read access: same as parent folder
+        allow read: if isAuthenticated() && 
+                       get(/databases/$(database)/documents/folders/$(folderId)).data.userId == request.auth.uid ||
+                       request.auth.uid in get(/databases/$(database)/documents/folders/$(folderId)).data.contributorIds ||
+                       get(/databases/$(database)/documents/folders/$(folderId)).data.isPublic == true;
+        
+        // Create access: owner or contributors (if folder not locked)
+        allow create: if isAuthenticated() && 
+                         request.resource.data.uploadedBy == request.auth.uid &&
+                         (get(/databases/$(database)/documents/folders/$(folderId)).data.userId == request.auth.uid ||
+                          (request.auth.uid in get(/databases/$(database)/documents/folders/$(folderId)).data.contributorIds &&
+                           get(/databases/$(database)/documents/folders/$(folderId)).data.isLocked != true));
+        
+        // Update access: only the uploader or folder owner
+        allow update: if isAuthenticated() && 
+                         (resource.data.uploadedBy == request.auth.uid ||
+                          get(/databases/$(database)/documents/folders/$(folderId)).data.userId == request.auth.uid);
+        
+        // Delete access: uploader or folder owner
+        allow delete: if isAuthenticated() && 
+                         (resource.data.uploadedBy == request.auth.uid ||
+                          get(/databases/$(database)/documents/folders/$(folderId)).data.userId == request.auth.uid);
+      }
+    }  
+  
+    // Scheduled Messages collection
+    match /scheduledMessages/{messageId} {
+      // Read access: sender or recipient only
+      allow read: if isAuthenticated() && 
+                     (resource.data.senderId == request.auth.uid || 
+                      resource.data.recipientId == request.auth.uid);
+      
+      // Create access: authenticated users can create messages where they are the sender
+      allow create: if isAuthenticated() && 
+                       request.resource.data.senderId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['senderId', 'recipientId', 'textContent', 'scheduledFor', 'createdAt', 'status']) &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.scheduledFor > request.time &&
+                       request.resource.data.textContent is string &&
+                       request.resource.data.textContent.size() > 0 &&
+                       request.resource.data.textContent.size() <= 5000; // 5KB text limit
+      
+      // Update access: only system (Cloud Functions) can update delivery status
+      // Users can only cancel their own pending messages
+      allow update: if isAuthenticated() && 
+                       resource.data.senderId == request.auth.uid &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.status == 'cancelled' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      
+      // Delete access: sender can delete their own pending messages
+      allow delete: if isAuthenticated() && 
+                       resource.data.senderId == request.auth.uid &&
+                       resource.data.status == 'pending';
+    }
+  }
+}

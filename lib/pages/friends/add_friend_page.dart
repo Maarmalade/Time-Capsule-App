@@ -19,7 +19,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
   bool _isSearching = false;
   bool _hasSearched = false;
   String? _errorMessage;
-  Set<String> _pendingRequests = {};
+  final Set<String> _pendingRequests = {};
 
   @override
   void dispose() {

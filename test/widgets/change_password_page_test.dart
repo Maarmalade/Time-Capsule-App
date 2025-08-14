@@ -125,7 +125,7 @@ void main() {
     testWidgets('should show success message when password is changed', (WidgetTester tester) async {
       when(mockUserProfileService.updatePassword(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(createTestWidget());
@@ -171,7 +171,7 @@ void main() {
     testWidgets('should clear form after successful password change', (WidgetTester tester) async {
       when(mockUserProfileService.updatePassword(any, any))
           .thenAnswer((_) async {
-            return null;
+            return;
           });
 
       await tester.pumpWidget(createTestWidget());

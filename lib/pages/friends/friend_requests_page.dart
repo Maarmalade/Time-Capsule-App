@@ -24,6 +24,7 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
   @override
   void initState() {
     super.initState();
+    _friendService = widget.friendService ?? FriendService();
     _loadFriendRequests();
   }
 

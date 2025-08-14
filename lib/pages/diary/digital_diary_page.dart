@@ -5,10 +5,7 @@ import '../../models/diary_entry_model.dart';
 import '../../services/diary_service.dart';
 import 'diary_entry_page.dart';
 import 'diary_viewer_page.dart';
-import '../../routes.dart';
-
-
-
+import '../../constants/route_constants.dart';
 
 class DigitalDiaryPage extends StatefulWidget {
   const DigitalDiaryPage({super.key});
@@ -18,7 +15,10 @@ class DigitalDiaryPage extends StatefulWidget {
 }
 
 class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
-  Future<DateTime?> showMonthYearPicker(BuildContext context, DateTime initialDate) async {
+  Future<DateTime?> showMonthYearPicker(
+    BuildContext context,
+    DateTime initialDate,
+  ) async {
     int selectedYear = initialDate.year;
     int selectedMonth = initialDate.month;
     return showDialog<DateTime>(
@@ -35,7 +35,10 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                     DropdownButton<int>(
                       value: selectedYear,
                       items: List.generate(30, (i) => 2000 + i)
-                          .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
+                          .map(
+                            (y) =>
+                                DropdownMenuItem(value: y, child: Text('$y')),
+                          )
                           .toList(),
                       onChanged: (y) {
                         if (y != null) setState(() => selectedYear = y);
@@ -44,7 +47,12 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                     DropdownButton<int>(
                       value: selectedMonth,
                       items: List.generate(12, (i) => i + 1)
-                          .map((m) => DropdownMenuItem(value: m, child: Text(_monthName(m))))
+                          .map(
+                            (m) => DropdownMenuItem(
+                              value: m,
+                              child: Text(_monthName(m)),
+                            ),
+                          )
                           .toList(),
                       onChanged: (m) {
                         if (m != null) setState(() => selectedMonth = m);
@@ -59,7 +67,10 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.pop(context, DateTime(selectedYear, selectedMonth)),
+                  onPressed: () => Navigator.pop(
+                    context,
+                    DateTime(selectedYear, selectedMonth),
+                  ),
                   child: const Text('OK'),
                 ),
               ],
@@ -69,13 +80,26 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
       },
     );
   }
+
   String _monthName(int month) {
     const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month];
   }
+
   final DiaryService _diaryService = DiaryService();
   final userId = FirebaseAuth.instance.currentUser!.uid;
 
@@ -95,11 +119,14 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
   Future<void> _fetchEntries() async {
     setState(() => _loading = true);
     final entries = await _diaryService.fetchDiaryEntriesForMonth(
-        userId, _focusedDay.year, _focusedDay.month);
+      userId,
+      _focusedDay.year,
+      _focusedDay.month,
+    );
     setState(() {
       _entries = {
         for (var e in entries)
-          DateTime(e.date.year, e.date.month, e.date.day): e
+          DateTime(e.date.year, e.date.month, e.date.day): e,
       };
       _loading = false;
     });
@@ -126,21 +153,22 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
       _selectedDay = selectedDay;
       _focusedDay = focusedDay;
     });
-    final entry = _entries[DateTime(selectedDay.year, selectedDay.month, selectedDay.day)];
+    final entry =
+        _entries[DateTime(
+          selectedDay.year,
+          selectedDay.month,
+          selectedDay.day,
+        )];
     if (entry == null) {
       final created = await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => DiaryEntryPage(date: selectedDay),
-        ),
+        MaterialPageRoute(builder: (_) => DiaryEntryPage(date: selectedDay)),
       );
       if (created == true) _fetchEntries();
     } else {
       final updated = await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => DiaryViewerPage(entry: entry),
-        ),
+        MaterialPageRoute(builder: (_) => DiaryViewerPage(entry: entry)),
       );
       if (updated == true) _fetchEntries();
     }
@@ -167,8 +195,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                   firstDay: DateTime.utc(2000, 1, 1),
                   lastDay: DateTime.utc(2100, 12, 31),
                   focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) =>
-                      isSameDay(_selectedDay, day),
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                   onDaySelected: _onDaySelected,
                   onPageChanged: (focusedDay) {
                     setState(() {
@@ -207,7 +234,10 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                     headerTitleBuilder: (context, day) {
                       return GestureDetector(
                         onTap: () async {
-                          final picked = await showMonthYearPicker(context, day);
+                          final picked = await showMonthYearPicker(
+                            context,
+                            day,
+                          );
                           if (picked != null) {
                             setState(() {
                               _focusedDay = picked;
@@ -227,7 +257,9 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                       );
                     },
                   ),
-                  availableCalendarFormats: const {CalendarFormat.month: 'Month'},
+                  availableCalendarFormats: const {
+                    CalendarFormat.month: 'Month',
+                  },
                   headerVisible: true,
                 ),
                 const SizedBox(height: 16),

@@ -1525,6 +1525,34 @@ class MockMediaService extends _i1.Mock implements _i8.MediaService {
           as _i5.Future<String>);
 
   @override
+  _i5.Future<String> createMediaWithAttribution(
+    String? folderId,
+    _i9.MediaFileModel? media,
+    String? contributorId,
+    bool? isSharedFolder,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#createMediaWithAttribution, [
+              folderId,
+              media,
+              contributorId,
+              isSharedFolder,
+            ]),
+            returnValue: _i5.Future<String>.value(
+              _i6.dummyValue<String>(
+                this,
+                Invocation.method(#createMediaWithAttribution, [
+                  folderId,
+                  media,
+                  contributorId,
+                  isSharedFolder,
+                ]),
+              ),
+            ),
+          )
+          as _i5.Future<String>);
+
+  @override
   _i5.Future<void> updateMedia(
     String? folderId,
     String? mediaId,

@@ -10,6 +10,8 @@ class MediaCardWidget extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool isSelected;
   final bool isMultiSelectMode;
+  final bool isSharedFolder;
+  final String? contributorName;
 
   const MediaCardWidget({
     super.key,
@@ -20,6 +22,8 @@ class MediaCardWidget extends StatelessWidget {
     this.onDelete,
     this.isSelected = false,
     this.isMultiSelectMode = false,
+    this.isSharedFolder = false,
+    this.contributorName,
   });
 
   @override
@@ -65,6 +69,32 @@ class MediaCardWidget extends StatelessWidget {
           child: Stack(
             children: [
               Center(child: content),
+              
+              // Contributor attribution for shared folders
+              if (isSharedFolder && contributorName != null && !isMultiSelectMode)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'by $contributorName',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
               
               // Selection indicator
               if (isMultiSelectMode)

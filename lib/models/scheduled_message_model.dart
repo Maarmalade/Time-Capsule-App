@@ -10,6 +10,7 @@ class ScheduledMessage {
   final String? videoUrl;
   final DateTime scheduledFor;
   final DateTime createdAt;
+  final DateTime updatedAt;
   final ScheduledMessageStatus status;
   final DateTime? deliveredAt;
 
@@ -21,6 +22,7 @@ class ScheduledMessage {
     this.videoUrl,
     required this.scheduledFor,
     required this.createdAt,
+    required this.updatedAt,
     required this.status,
     this.deliveredAt,
   });
@@ -41,6 +43,9 @@ class ScheduledMessage {
       createdAt: (data['createdAt'] is Timestamp && data['createdAt'] != null)
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      updatedAt: (data['updatedAt'] is Timestamp && data['updatedAt'] != null)
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : DateTime.now(),
       status: _parseStatus(data['status']),
       deliveredAt: (data['deliveredAt'] is Timestamp && data['deliveredAt'] != null)
           ? (data['deliveredAt'] as Timestamp).toDate()
@@ -57,6 +62,7 @@ class ScheduledMessage {
       'videoUrl': videoUrl,
       'scheduledFor': Timestamp.fromDate(scheduledFor),
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
       'status': status.name,
       'deliveredAt': deliveredAt != null ? Timestamp.fromDate(deliveredAt!) : null,
     };
@@ -71,6 +77,7 @@ class ScheduledMessage {
     String? videoUrl,
     DateTime? scheduledFor,
     DateTime? createdAt,
+    DateTime? updatedAt,
     ScheduledMessageStatus? status,
     DateTime? deliveredAt,
   }) {
@@ -82,6 +89,7 @@ class ScheduledMessage {
       videoUrl: videoUrl ?? this.videoUrl,
       scheduledFor: scheduledFor ?? this.scheduledFor,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       deliveredAt: deliveredAt ?? this.deliveredAt,
     );

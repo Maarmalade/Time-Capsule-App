@@ -6,7 +6,7 @@ import '../../models/user_profile.dart';
 import '../../services/user_profile_service.dart';
 import '../../services/profile_picture_service.dart';
 import '../../widgets/profile_picture_widget.dart';
-import '../../routes.dart';
+import '../../constants/route_constants.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -19,7 +19,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final UserProfileService _userProfileService = UserProfileService();
   final ProfilePictureService _profilePictureService = ProfilePictureService();
   final ImagePicker _imagePicker = ImagePicker();
-  
+
   UserProfile? _userProfile;
   bool _isLoading = true;
   bool _isUploadingImage = false;
@@ -39,7 +39,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
 
       final profile = await _userProfileService.getCurrentUserProfile();
-      
+
       setState(() {
         _userProfile = profile;
         _isLoading = false;
@@ -77,14 +77,17 @@ class _ProfilePageState extends State<ProfilePage> {
         throw Exception('No user logged in');
       }
 
-      await _userProfileService.updateProfilePicture(user.uid, File(image.path));
-      
+      await _userProfileService.updateProfilePicture(
+        user.uid,
+        File(image.path),
+      );
+
       // Clear the profile cache to force refresh throughout the app
       _profilePictureService.clearCache();
-      
+
       // Reload profile to get updated picture URL
       await _loadUserProfile();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -97,7 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _errorMessage = e.toString();
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -141,7 +144,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildProfilePicture() {
     const double size = 120;
-    
+
     return Stack(
       children: [
         ProfilePictureWidget(
@@ -191,83 +194,80 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _userProfile == null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage ?? 'Failed to load profile',
-                        style: const TextStyle(fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadUserProfile,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage ?? 'Failed to load profile',
+                    style: const TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      // Profile Picture Section
-                      _buildProfilePicture(),
-                      const SizedBox(height: 24),
-                      
-                      // Username
-                      Text(
-                        '@${_userProfile!.username}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Email
-                      Text(
-                        _userProfile!.email,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Profile Actions
-                      _buildProfileActions(),
-                      
-                      // Error Message
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error_outline, color: Colors.red.shade600),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade600),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadUserProfile,
+                    child: const Text('Retry'),
                   ),
-                ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  // Profile Picture Section
+                  _buildProfilePicture(),
+                  const SizedBox(height: 24),
+
+                  // Username
+                  Text(
+                    '@${_userProfile!.username}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Email
+                  Text(
+                    _userProfile!.email,
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Profile Actions
+                  _buildProfileActions(),
+
+                  // Error Message
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade600),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(color: Colors.red.shade600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 
@@ -283,7 +283,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Routes.editUsername,
               arguments: {'currentUsername': _userProfile!.username},
             );
-            
+
             // If username was updated, reload the profile
             if (result == true) {
               await _loadUserProfile();
@@ -325,15 +325,9 @@ class _ProfilePageState extends State<ProfilePage> {
             color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: Theme.of(context).primaryColor,
-          ),
+          child: Icon(icon, color: Theme.of(context).primaryColor),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,

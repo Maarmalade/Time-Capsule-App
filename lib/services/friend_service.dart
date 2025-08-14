@@ -4,6 +4,9 @@ import '../models/user_profile.dart';
 import '../models/friend_request_model.dart';
 import '../models/friendship_model.dart';
 import '../utils/friend_validation_utils.dart';
+import '../utils/social_validation_utils.dart';
+import '../utils/social_error_handler.dart';
+import '../utils/rate_limiter.dart';
 import '../utils/error_handler.dart';
 
 class FriendService {
@@ -26,21 +29,35 @@ class FriendService {
   /// Returns a list of UserProfile objects matching the search query
   Future<List<UserProfile>> searchUsersByUsername(String query) async {
     try {
-      // Validate and sanitize the search query
-      final sanitizedQuery = FriendValidationUtils.validateAndSanitizeSearchQuery(query);
-      
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw Exception('User must be logged in to search for friends');
       }
 
+      // Check rate limiting
+      if (!SocialRateLimiters.canSearchUsers(currentUser.uid)) {
+        final waitTime = SocialRateLimiters.getTimeUntilNextSearch(currentUser.uid);
+        throw Exception('Too many search requests. Please wait ${waitTime?.inSeconds ?? 60} seconds before searching again.');
+      }
+
+      // Validate search query
+      final validationResult = SocialValidationUtils.validateUsernameSearch(query);
+      if (validationResult.hasError) {
+        throw Exception(validationResult.errorMessage);
+      }
+      
+      final sanitizedQuery = validationResult.data as String;
+
       // Perform the search query with optimization
       final querySnapshot = await _firestore
           .collection(_usersCollection)
           .where('username', isGreaterThanOrEqualTo: sanitizedQuery)
-          .where('username', isLessThan: '${sanitizedQuery}\uf8ff')
+          .where('username', isLessThan: '$sanitizedQuery\uf8ff')
           .limit(_maxSearchResults)
           .get();
+
+      // Record the search request for rate limiting
+      SocialRateLimiters.recordUserSearch(currentUser.uid);
 
       // Convert documents to UserProfile objects and filter out current user
       final searchResults = querySnapshot.docs
@@ -50,12 +67,12 @@ class FriendService {
 
       return searchResults;
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
+      throw Exception(SocialErrorHandler.getFriendErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to search users: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception('Failed to search users: ${SocialErrorHandler.getFriendErrorMessage(e)}');
     }
   }
 
@@ -68,9 +85,25 @@ class FriendService {
         throw Exception('User must be logged in to send friend requests');
       }
 
-      // Validate input
-      FriendValidationUtils.validateUserId(receiverId, 'Receiver ID');
-      FriendValidationUtils.validateDifferentUsers(currentUser.uid, receiverId);
+      // Check rate limiting
+      if (!SocialRateLimiters.canSendFriendRequest(currentUser.uid)) {
+        final waitTime = SocialRateLimiters.getTimeUntilNextFriendRequest(currentUser.uid);
+        throw Exception('Daily friend request limit reached. Try again in ${waitTime?.inHours ?? 24} hours.');
+      }
+
+      // Get current daily request count for validation
+      final dailyRequestCount = SocialRateLimiters.getFriendRequestCount(currentUser.uid);
+
+      // Validate friend request
+      final validationResult = SocialValidationUtils.validateFriendRequest(
+        senderId: currentUser.uid,
+        receiverId: receiverId,
+        dailyRequestCount: dailyRequestCount,
+      );
+      
+      if (validationResult.hasError) {
+        throw Exception(validationResult.errorMessage);
+      }
 
       // Get current user's profile for sender information
       final senderProfile = await _getUserProfile(currentUser.uid);
@@ -108,14 +141,17 @@ class FriendService {
           .collection(_friendRequestsCollection)
           .add(friendRequest.toFirestore());
 
+      // Record the friend request for rate limiting
+      SocialRateLimiters.recordFriendRequest(currentUser.uid);
+
       return friendRequest.copyWith(id: docRef.id);
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
+      throw Exception(SocialErrorHandler.getFriendErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
         rethrow;
       }
-      throw Exception('Failed to send friend request: ${ErrorHandler.getErrorMessage(e)}');
+      throw Exception('Failed to send friend request: ${SocialErrorHandler.getFriendErrorMessage(e)}');
     }
   }
 

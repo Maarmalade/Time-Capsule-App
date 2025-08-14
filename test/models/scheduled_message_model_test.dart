@@ -331,7 +331,7 @@ void main() {
         final timeUntilDelivery = futureMessage.getTimeUntilDelivery();
         expect(timeUntilDelivery, isNotNull);
         expect(timeUntilDelivery!.inHours, greaterThanOrEqualTo(1)); // Allow for some variance
-        expect(timeUntilDelivery!.inHours, lessThanOrEqualTo(2));
+        expect(timeUntilDelivery.inHours, lessThanOrEqualTo(2));
       });
 
       test('getTimeUntilDelivery should return null for delivered message', () {
