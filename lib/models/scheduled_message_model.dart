@@ -7,6 +7,7 @@ class ScheduledMessage {
   final String senderId;
   final String recipientId;
   final String textContent;
+  final List<String>? imageUrls;
   final String? videoUrl;
   final DateTime scheduledFor;
   final DateTime createdAt;
@@ -19,6 +20,7 @@ class ScheduledMessage {
     required this.senderId,
     required this.recipientId,
     required this.textContent,
+    this.imageUrls,
     this.videoUrl,
     required this.scheduledFor,
     required this.createdAt,
@@ -36,6 +38,9 @@ class ScheduledMessage {
       senderId: data['senderId'] ?? '',
       recipientId: data['recipientId'] ?? '',
       textContent: data['textContent'] ?? '',
+      imageUrls: data['imageUrls'] != null 
+          ? List<String>.from(data['imageUrls'] as List)
+          : null,
       videoUrl: data['videoUrl'],
       scheduledFor: (data['scheduledFor'] is Timestamp && data['scheduledFor'] != null)
           ? (data['scheduledFor'] as Timestamp).toDate()
@@ -59,6 +64,7 @@ class ScheduledMessage {
       'senderId': senderId,
       'recipientId': recipientId,
       'textContent': textContent,
+      'imageUrls': imageUrls,
       'videoUrl': videoUrl,
       'scheduledFor': Timestamp.fromDate(scheduledFor),
       'createdAt': Timestamp.fromDate(createdAt),
@@ -74,6 +80,7 @@ class ScheduledMessage {
     String? senderId,
     String? recipientId,
     String? textContent,
+    List<String>? imageUrls,
     String? videoUrl,
     DateTime? scheduledFor,
     DateTime? createdAt,
@@ -86,6 +93,7 @@ class ScheduledMessage {
       senderId: senderId ?? this.senderId,
       recipientId: recipientId ?? this.recipientId,
       textContent: textContent ?? this.textContent,
+      imageUrls: imageUrls ?? this.imageUrls,
       videoUrl: videoUrl ?? this.videoUrl,
       scheduledFor: scheduledFor ?? this.scheduledFor,
       createdAt: createdAt ?? this.createdAt,
@@ -117,7 +125,14 @@ class ScheduledMessage {
     return senderId.isNotEmpty && 
            recipientId.isNotEmpty && 
            textContent.isNotEmpty &&
-           scheduledFor.isAfter(DateTime.now());
+           isValidScheduledTime();
+  }
+
+  /// Validates that the scheduled time is at least 1 minute in the future
+  bool isValidScheduledTime() {
+    final now = DateTime.now();
+    final minimumFutureTime = now.add(const Duration(minutes: 1));
+    return scheduledFor.isAfter(minimumFutureTime);
   }
 
   bool isPending() => status == ScheduledMessageStatus.pending;
@@ -138,9 +153,25 @@ class ScheduledMessage {
     return null;
   }
 
+  // Media validation methods
+  bool hasMedia() {
+    return (imageUrls?.isNotEmpty ?? false) || videoUrl != null;
+  }
+
+  List<String> getAllMediaUrls() {
+    final List<String> allUrls = [];
+    if (imageUrls != null) {
+      allUrls.addAll(imageUrls!);
+    }
+    if (videoUrl != null) {
+      allUrls.add(videoUrl!);
+    }
+    return allUrls;
+  }
+
   @override
   String toString() {
-    return 'ScheduledMessage(id: $id, senderId: $senderId, recipientId: $recipientId, textContent: ${textContent.length > 50 ? '${textContent.substring(0, 50)}...' : textContent}, scheduledFor: $scheduledFor, status: $status, deliveredAt: $deliveredAt)';
+    return 'ScheduledMessage(id: $id, senderId: $senderId, recipientId: $recipientId, textContent: ${textContent.length > 50 ? '${textContent.substring(0, 50)}...' : textContent}, imageUrls: $imageUrls, videoUrl: $videoUrl, scheduledFor: $scheduledFor, status: $status, deliveredAt: $deliveredAt)';
   }
 
   @override
@@ -151,11 +182,22 @@ class ScheduledMessage {
         other.senderId == senderId &&
         other.recipientId == recipientId &&
         other.textContent == textContent &&
+        _listEquals(other.imageUrls, imageUrls) &&
         other.videoUrl == videoUrl &&
         other.scheduledFor == scheduledFor &&
         other.createdAt == createdAt &&
         other.status == status &&
         other.deliveredAt == deliveredAt;
+  }
+
+  // Helper method to compare lists
+  bool _listEquals<T>(List<T>? a, List<T>? b) {
+    if (a == null) return b == null;
+    if (b == null || a.length != b.length) return false;
+    for (int index = 0; index < a.length; index += 1) {
+      if (a[index] != b[index]) return false;
+    }
+    return true;
   }
 
   @override
@@ -164,10 +206,21 @@ class ScheduledMessage {
         senderId.hashCode ^
         recipientId.hashCode ^
         textContent.hashCode ^
+        _getListHashCode(imageUrls) ^
         videoUrl.hashCode ^
         scheduledFor.hashCode ^
         createdAt.hashCode ^
         status.hashCode ^
         deliveredAt.hashCode;
+  }
+
+  // Helper method to get hash code for list
+  int _getListHashCode<T>(List<T>? list) {
+    if (list == null) return 0;
+    int hash = 0;
+    for (T item in list) {
+      hash ^= item.hashCode;
+    }
+    return hash;
   }
 }

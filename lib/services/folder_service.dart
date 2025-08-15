@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/folder_model.dart' as folder_model;
 import '../models/shared_folder_data.dart';
+import '../models/shared_folder_notification_model.dart';
+import '../models/user_profile.dart';
 import 'media_service.dart';
+import 'user_profile_service.dart';
 import '../utils/social_validation_utils.dart';
 import '../utils/social_error_handler.dart';
 import '../utils/rate_limiter.dart';
@@ -13,14 +16,17 @@ class FolderService {
   final FirebaseFirestore _firestore;
   final MediaService _mediaService;
   final FirebaseAuth _auth;
+  final UserProfileService _userProfileService;
 
   FolderService({
     FirebaseFirestore? firestore,
     MediaService? mediaService,
     FirebaseAuth? auth,
+    UserProfileService? userProfileService,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _mediaService = mediaService ?? MediaService(),
-       _auth = auth ?? FirebaseAuth.instance;
+       _auth = auth ?? FirebaseAuth.instance,
+       _userProfileService = userProfileService ?? UserProfileService();
 
   // Create folder
   Future<String> createFolder(folder_model.FolderModel folder) async {
@@ -295,6 +301,11 @@ class FolderService {
 
       await ref.set(folderData);
 
+      // Send notifications to contributors
+      for (final contributorId in uniqueContributors) {
+        await notifyContributorAdded(ref.id, contributorId);
+      }
+
       // Record the shared folder creation for rate limiting
       SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
 
@@ -383,6 +394,11 @@ class FolderService {
         ...sharedData.toMap(),
       });
 
+      // Send notifications to contributors
+      for (final contributorId in uniqueContributors) {
+        await notifyContributorAdded(folderId, contributorId);
+      }
+
       // Record the shared folder creation for rate limiting
       SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
     } on FirebaseException catch (e) {
@@ -448,6 +464,11 @@ class FolderService {
       await _firestore.collection('folders').doc(folderId).update({
         'contributorIds': updatedContributors,
       });
+
+      // Send notifications to new contributors
+      for (final contributorId in newContributors) {
+        await notifyContributorAdded(folderId, contributorId);
+      }
     } on FirebaseException catch (e) {
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
@@ -456,6 +477,68 @@ class FolderService {
       }
       throw Exception(
         'Failed to invite contributors: ${ErrorHandler.getErrorMessage(e)}',
+      );
+    }
+  }
+
+  // Notify contributor when added to a shared folder
+  Future<void> notifyContributorAdded(String folderId, String contributorId) async {
+    try {
+      if (folderId.isEmpty) {
+        throw Exception('Folder ID is required');
+      }
+
+      if (contributorId.isEmpty) {
+        throw Exception('Contributor ID is required');
+      }
+
+      // Get folder information
+      final folderDoc = await _firestore
+          .collection('folders')
+          .doc(folderId)
+          .get();
+      if (!folderDoc.exists) {
+        throw Exception('Folder not found');
+      }
+
+      final folderData = folderDoc.data() as Map<String, dynamic>;
+      final folderName = folderData['name'] ?? 'Unknown Folder';
+      final ownerId = folderData['userId'] ?? '';
+
+      if (ownerId.isEmpty) {
+        throw Exception('Folder owner not found');
+      }
+
+      // Get owner information
+      final ownerProfile = await _userProfileService.getUserProfile(ownerId);
+      if (ownerProfile == null) {
+        throw Exception('Folder owner profile not found');
+      }
+
+      // Create notification
+      final notification = SharedFolderNotification(
+        id: '', // Will be set by Firestore
+        folderId: folderId,
+        folderName: folderName,
+        ownerId: ownerId,
+        ownerUsername: ownerProfile.username,
+        contributorId: contributorId,
+        createdAt: DateTime.now(),
+        isRead: false,
+      );
+
+      // Save notification to Firestore
+      await _firestore
+          .collection('shared_folder_notifications')
+          .add(notification.toFirestore());
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to notify contributor: ${ErrorHandler.getErrorMessage(e)}',
       );
     }
   }
@@ -487,22 +570,25 @@ class FolderService {
         throw Exception('Cannot remove contributors from a non-shared folder');
       }
 
-      final sharedData = SharedFolderData.fromMap(folderData);
+      final folder = folder_model.FolderModel.fromDoc(folderDoc);
 
-      if (userId == sharedData.ownerId) {
+      if (userId == folder.userId) {
         throw Exception('Cannot remove the folder owner');
       }
 
-      if (!sharedData.hasContributor(userId)) {
+      if (!folder.contributorIds.contains(userId)) {
         return; // User is not a contributor
       }
 
-      final updatedContributors = List<String>.from(sharedData.contributorIds)
+      final updatedContributors = List<String>.from(folder.contributorIds)
         ..remove(userId);
 
       await _firestore.collection('folders').doc(folderId).update({
         'contributorIds': updatedContributors,
       });
+
+      // Notify the removed contributor (for requirement 5.5)
+      await _notifyContributorRemoved(folderId, userId, folder.name);
     } on FirebaseException catch (e) {
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
@@ -512,6 +598,38 @@ class FolderService {
       throw Exception(
         'Failed to remove contributor: ${ErrorHandler.getErrorMessage(e)}',
       );
+    }
+  }
+
+  // Helper method to notify contributor when removed
+  Future<void> _notifyContributorRemoved(String folderId, String contributorId, String folderName) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      // Get owner information
+      final ownerProfile = await _userProfileService.getUserProfile(currentUser.uid);
+      if (ownerProfile == null) return;
+
+      // Create removal notification
+      final notification = SharedFolderNotification(
+        id: '', // Will be set by Firestore
+        folderId: folderId,
+        folderName: folderName,
+        ownerId: currentUser.uid,
+        ownerUsername: ownerProfile.username,
+        contributorId: contributorId,
+        createdAt: DateTime.now(),
+        isRead: false,
+      );
+
+      // Save notification to Firestore with a different collection for removals
+      await _firestore
+          .collection('shared_folder_removal_notifications')
+          .add(notification.toFirestore());
+    } catch (e) {
+      // Don't throw error for notification failures - the main operation should succeed
+      // Log error silently - notification failure shouldn't block contributor removal
     }
   }
 
@@ -631,14 +749,26 @@ class FolderService {
   // Check if user can contribute to folder
   Future<bool> canUserContribute(String folderId, String userId) async {
     try {
-      final sharedData = await getSharedFolderData(folderId);
-      if (sharedData == null) {
-        // Regular folder - only owner can contribute
-        final folder = await getFolder(folderId);
-        return folder?.userId == userId;
+      if (folderId.isEmpty || userId.isEmpty) {
+        return false;
       }
 
-      return sharedData.canContribute(userId);
+      final folder = await getFolder(folderId);
+      if (folder == null) {
+        return false;
+      }
+
+      // Owner can always contribute
+      if (folder.userId == userId) {
+        return true;
+      }
+
+      // For shared folders, check if user is contributor and folder is not locked
+      if (folder.isShared && folder.contributorIds.contains(userId)) {
+        return !folder.isLocked;
+      }
+
+      return false;
     } catch (e) {
       return false;
     }
@@ -647,16 +777,75 @@ class FolderService {
   // Check if user can view folder
   Future<bool> canUserView(String folderId, String userId) async {
     try {
-      final sharedData = await getSharedFolderData(folderId);
-      if (sharedData == null) {
-        // Regular folder - only owner can view
-        final folder = await getFolder(folderId);
-        return folder?.userId == userId;
+      if (folderId.isEmpty || userId.isEmpty) {
+        return false;
       }
 
-      return sharedData.canView(userId);
+      final folder = await getFolder(folderId);
+      if (folder == null) {
+        return false;
+      }
+
+      // Owner can always view
+      if (folder.userId == userId) {
+        return true;
+      }
+
+      // Contributors can view shared folders
+      if (folder.isShared && folder.contributorIds.contains(userId)) {
+        return true;
+      }
+
+      // Anyone can view public folders
+      if (folder.isPublic) {
+        return true;
+      }
+
+      return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  // Get folder contributors (for task 11)
+  Future<List<UserProfile>> getFolderContributors(String folderId) async {
+    try {
+      if (folderId.isEmpty) {
+        throw Exception('Folder ID is required');
+      }
+
+      final folder = await getFolder(folderId);
+      if (folder == null) {
+        throw Exception('Folder not found');
+      }
+
+      if (!folder.isShared) {
+        return []; // Non-shared folders have no contributors
+      }
+
+      final contributors = <UserProfile>[];
+      for (final contributorId in folder.contributorIds) {
+        try {
+          final profile = await _userProfileService.getUserProfile(contributorId);
+          if (profile != null) {
+            contributors.add(profile);
+          }
+        } catch (e) {
+          // Skip contributors whose profiles can't be loaded
+          continue;
+        }
+      }
+
+      return contributors;
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to get folder contributors: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 
@@ -714,6 +903,63 @@ class FolderService {
               .map((d) => folder_model.FolderModel.fromDoc(d))
               .toList(),
         );
+  }
+
+  // Stream folders that user can access (owned or contributor) with real-time updates
+  Stream<List<folder_model.FolderModel>> streamUserAccessibleFolders(
+    String userId, {
+    String? parentFolderId,
+  }) {
+    try {
+      if (userId.isEmpty) {
+        throw Exception('User ID is required');
+      }
+
+      Query query = _firestore.collection('folders');
+
+      // Filter by parent folder
+      if (parentFolderId == null) {
+        query = query.where('parentFolderId', isNull: true);
+      } else {
+        query = query.where('parentFolderId', isEqualTo: parentFolderId);
+      }
+
+      // Include folders where user is owner OR contributor
+      query = query.where(
+        Filter.or(
+          Filter('userId', isEqualTo: userId),
+          Filter('contributorIds', arrayContains: userId),
+        ),
+      );
+
+      return query
+          .orderBy('createdAt', descending: false)
+          .snapshots()
+          .map(
+            (snap) => snap.docs
+                .map((d) => folder_model.FolderModel.fromDoc(d))
+                .where((folder) => _canUserAccessFolder(folder, userId))
+                .toList(),
+          );
+    } catch (e) {
+      // Return empty stream on error to prevent UI crashes
+      return Stream.value(<folder_model.FolderModel>[]);
+    }
+  }
+
+  // Helper method to validate folder access
+  bool _canUserAccessFolder(folder_model.FolderModel folder, String userId) {
+    // User is the owner
+    if (folder.userId == userId) {
+      return true;
+    }
+
+    // User is a contributor to a shared folder
+    if (folder.isShared && folder.contributorIds.contains(userId)) {
+      return true;
+    }
+
+    return false;
   }
 
   // ========== PUBLIC FOLDER FUNCTIONALITY ==========
@@ -921,6 +1167,117 @@ class FolderService {
       return folderData['isPublic'] ?? false;
     } catch (e) {
       return false;
+    }
+  }
+
+  // ========== SHARED FOLDER NOTIFICATION FUNCTIONALITY ==========
+
+  // Get shared folder notifications for a user
+  Future<List<SharedFolderNotification>> getSharedFolderNotifications(String userId) async {
+    try {
+      if (userId.isEmpty) {
+        throw Exception('User ID is required');
+      }
+
+      final querySnapshot = await _firestore
+          .collection('shared_folder_notifications')
+          .where('contributorId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs
+          .map((doc) => SharedFolderNotification.fromFirestore(doc))
+          .toList();
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to get shared folder notifications: ${ErrorHandler.getErrorMessage(e)}',
+      );
+    }
+  }
+
+  // Stream shared folder notifications for a user
+  Stream<List<SharedFolderNotification>> streamSharedFolderNotifications(String userId) {
+    if (userId.isEmpty) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('shared_folder_notifications')
+        .where('contributorId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => SharedFolderNotification.fromFirestore(doc))
+            .toList());
+  }
+
+  // Mark notification as read
+  Future<void> markNotificationAsRead(String notificationId) async {
+    try {
+      if (notificationId.isEmpty) {
+        throw Exception('Notification ID is required');
+      }
+
+      await _firestore
+          .collection('shared_folder_notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to mark notification as read: ${ErrorHandler.getErrorMessage(e)}',
+      );
+    }
+  }
+
+  // Delete notification
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      if (notificationId.isEmpty) {
+        throw Exception('Notification ID is required');
+      }
+
+      await _firestore
+          .collection('shared_folder_notifications')
+          .doc(notificationId)
+          .delete();
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to delete notification: ${ErrorHandler.getErrorMessage(e)}',
+      );
+    }
+  }
+
+  // Get unread notification count for a user
+  Future<int> getUnreadNotificationCount(String userId) async {
+    try {
+      if (userId.isEmpty) {
+        return 0;
+      }
+
+      final querySnapshot = await _firestore
+          .collection('shared_folder_notifications')
+          .where('contributorId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      return querySnapshot.docs.length;
+    } catch (e) {
+      return 0;
     }
   }
 }

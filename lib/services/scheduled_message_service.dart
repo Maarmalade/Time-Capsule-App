@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -6,14 +7,205 @@ import '../utils/social_validation_utils.dart';
 import '../utils/social_error_handler.dart';
 import '../utils/rate_limiter.dart';
 import '../utils/error_handler.dart';
+import '../utils/validation_utils.dart';
+import 'storage_service.dart';
 
 class ScheduledMessageService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final StorageService _storageService;
 
-  ScheduledMessageService({FirebaseFirestore? firestore, FirebaseAuth? auth})
-    : _firestore = firestore ?? FirebaseFirestore.instance,
-      _auth = auth ?? FirebaseAuth.instance;
+  ScheduledMessageService({
+    FirebaseFirestore? firestore, 
+    FirebaseAuth? auth,
+    StorageService? storageService,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _storageService = storageService ?? StorageService();
+
+  /// Uploads multiple media files for scheduled messages with retry mechanism
+  Future<List<String>> uploadMessageMedia(List<File> mediaFiles) async {
+    if (mediaFiles.isEmpty) {
+      return [];
+    }
+
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User must be logged in to upload media');
+    }
+
+    final uploadedUrls = <String>[];
+    final errors = <String>[];
+
+    for (int i = 0; i < mediaFiles.length; i++) {
+      final file = mediaFiles[i];
+      
+      try {
+        // Validate file before upload
+        final fileName = file.path.toLowerCase();
+        final extension = fileName.substring(fileName.lastIndexOf('.'));
+        
+        String? validationError;
+        if (ValidationUtils.allowedImageExtensions.contains(extension)) {
+          validationError = ValidationUtils.validateFileUpload(file, expectedType: 'image');
+        } else if (ValidationUtils.allowedVideoExtensions.contains(extension)) {
+          validationError = ValidationUtils.validateFileUpload(file, expectedType: 'video');
+        } else {
+          validationError = 'Unsupported file type. Only images and videos are allowed.';
+        }
+
+        if (validationError != null) {
+          errors.add('File ${i + 1}: $validationError');
+          continue;
+        }
+
+        // Generate unique path for the media file
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final mediaPath = 'scheduled_messages/${currentUser.uid}/$timestamp-$i$extension';
+
+        // Upload with retry mechanism
+        String? uploadUrl;
+        int retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries && uploadUrl == null) {
+          try {
+            uploadUrl = await _storageService.uploadFile(file, mediaPath);
+          } catch (e) {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              errors.add('File ${i + 1}: Failed to upload after $maxRetries attempts - ${e.toString()}');
+            } else {
+              // Wait before retry with exponential backoff
+              await Future.delayed(Duration(seconds: retryCount * 2));
+            }
+          }
+        }
+
+        if (uploadUrl != null) {
+          uploadedUrls.add(uploadUrl);
+        }
+      } catch (e) {
+        errors.add('File ${i + 1}: Unexpected error - ${e.toString()}');
+      }
+    }
+
+    // If there were errors but some uploads succeeded, continue with partial success
+    if (errors.isNotEmpty && uploadedUrls.isEmpty) {
+      throw Exception('All media uploads failed: ${errors.join(', ')}');
+    } else if (errors.isNotEmpty && uploadedUrls.isNotEmpty) {
+      // Some uploads failed but others succeeded - this is handled by returning partial results
+      // In production, you might want to log this to a proper logging service
+    }
+
+    return uploadedUrls;
+  }
+
+  /// Creates a scheduled message with media support
+  Future<String> createScheduledMessageWithMedia(
+    ScheduledMessage message,
+    List<File>? images,
+    File? video,
+  ) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to create scheduled messages');
+      }
+
+      // Validate scheduled time with enhanced error messages
+      final timeValidationError = getScheduledTimeValidationError(message.scheduledFor);
+      if (timeValidationError != null) {
+        throw Exception(timeValidationError);
+      }
+
+      // Prepare media files for upload
+      final mediaFiles = <File>[];
+      if (images != null && images.isNotEmpty) {
+        mediaFiles.addAll(images);
+      }
+      if (video != null) {
+        mediaFiles.add(video);
+      }
+
+      // Upload media files if any
+      List<String> uploadedUrls = [];
+      if (mediaFiles.isNotEmpty) {
+        uploadedUrls = await uploadMessageMedia(mediaFiles);
+      }
+
+      // Separate image URLs and video URL
+      List<String>? imageUrls;
+      String? videoUrl;
+
+      if (uploadedUrls.isNotEmpty) {
+        imageUrls = <String>[];
+        
+        for (final url in uploadedUrls) {
+          // Determine if URL is for image or video based on file extension in the URL
+          if (url.contains('.mp4') || url.contains('.mov') || url.contains('.avi') || 
+              url.contains('.mkv') || url.contains('.webm')) {
+            videoUrl = url;
+          } else {
+            imageUrls.add(url);
+          }
+        }
+
+        // If no images were found, set imageUrls to null
+        if (imageUrls.isEmpty) {
+          imageUrls = null;
+        }
+      }
+
+      // Create message with uploaded media URLs
+      final messageWithMedia = message.copyWith(
+        imageUrls: imageUrls,
+        videoUrl: videoUrl,
+      );
+
+      // Use existing createScheduledMessage method for the rest of the logic
+      return await createScheduledMessage(messageWithMedia);
+    } catch (e) {
+      // Clean up uploaded media if message creation fails
+      if (e.toString().contains('Failed to create scheduled message')) {
+        // Note: In a production app, you might want to implement cleanup
+        // of uploaded media files here, but it's complex due to async nature
+      }
+      rethrow;
+    }
+  }
+
+  /// Validates scheduled time with improved logic (minimum 1 minute future)
+  /// Returns true if the scheduled time is valid, false otherwise
+  bool validateScheduledTime(DateTime scheduledTime) {
+    final now = DateTime.now();
+    final minimumFutureTime = now.add(const Duration(minutes: 1));
+    return scheduledTime.isAfter(minimumFutureTime);
+  }
+
+  /// Gets a detailed error message for invalid scheduled times
+  /// Returns null if the time is valid, error message string if invalid
+  String? getScheduledTimeValidationError(DateTime scheduledTime) {
+    final now = DateTime.now();
+    final minimumFutureTime = now.add(const Duration(minutes: 1));
+    
+    if (scheduledTime.isBefore(now)) {
+      return 'Cannot schedule messages in the past. Please select a future time.';
+    }
+    
+    if (scheduledTime.isBefore(minimumFutureTime)) {
+      final secondsUntilValid = minimumFutureTime.difference(now).inSeconds;
+      return 'Message must be scheduled at least 1 minute in the future. Please wait $secondsUntilValid seconds or select a later time.';
+    }
+    
+    // Check if scheduling too far in the future (10 years max)
+    final maxFutureTime = now.add(const Duration(days: 365 * 10));
+    if (scheduledTime.isAfter(maxFutureTime)) {
+      return 'Cannot schedule messages more than 10 years in the future.';
+    }
+    
+    return null; // Time is valid
+  }
 
   // Create scheduled message with future date validation
   Future<String> createScheduledMessage(ScheduledMessage message) async {
@@ -36,6 +228,12 @@ class ScheduledMessageService {
       // Get current user message count for validation
       final userMessageCounts = await getMessageCounts(currentUser.uid);
       final userMessageCount = userMessageCounts['scheduled'] ?? 0;
+
+      // Validate scheduled time with enhanced error messages
+      final timeValidationError = getScheduledTimeValidationError(message.scheduledFor);
+      if (timeValidationError != null) {
+        throw Exception(timeValidationError);
+      }
 
       // Validate scheduled message
       final validationResult = SocialValidationUtils.validateScheduledMessage(
@@ -124,7 +322,7 @@ class ScheduledMessageService {
         throw Exception('User ID is required');
       }
 
-      // Get both delivered messages and messages ready for delivery
+      // Get delivered messages
       final deliveredSnapshot = await _firestore
           .collection('scheduledMessages')
           .where('recipientId', isEqualTo: userId)
@@ -132,6 +330,7 @@ class ScheduledMessageService {
           .orderBy('deliveredAt', descending: true)
           .get();
 
+      // Get messages that are ready for delivery (pending and past scheduled time)
       final readyForDeliverySnapshot = await _firestore
           .collection('scheduledMessages')
           .where('recipientId', isEqualTo: userId)
@@ -147,23 +346,26 @@ class ScheduledMessageService {
           .map((doc) => ScheduledMessage.fromFirestore(doc))
           .toList();
 
+      // For ready messages, treat them as delivered for display purposes
+      // but maintain their actual status for backend processing
       final readyMessages = readyForDeliverySnapshot.docs
           .map((doc) => ScheduledMessage.fromFirestore(doc))
           .toList();
 
-      // Combine and sort by delivery time (delivered messages first, then ready messages)
+      // Combine and sort by delivery time
       final allMessages = [...deliveredMessages, ...readyMessages];
       allMessages.sort((a, b) {
-        if (a.isDelivered() && b.isDelivered()) {
-          return (b.deliveredAt ?? DateTime.now()).compareTo(
-            a.deliveredAt ?? DateTime.now(),
-          );
-        } else if (a.isDelivered()) {
+        // Sort delivered messages by deliveredAt, ready messages by scheduledFor
+        final aTime = a.isDelivered() ? (a.deliveredAt ?? a.scheduledFor) : a.scheduledFor;
+        final bTime = b.isDelivered() ? (b.deliveredAt ?? b.scheduledFor) : b.scheduledFor;
+        
+        // Delivered messages come first, then by time descending
+        if (a.isDelivered() && !b.isDelivered()) {
           return -1;
-        } else if (b.isDelivered()) {
+        } else if (!a.isDelivered() && b.isDelivered()) {
           return 1;
         } else {
-          return b.scheduledFor.compareTo(a.scheduledFor);
+          return bTime.compareTo(aTime);
         }
       });
 
@@ -239,14 +441,33 @@ class ScheduledMessageService {
         .collection('scheduledMessages')
         .where('recipientId', isEqualTo: userId)
         .where('status', whereIn: ['delivered', 'pending'])
-        .orderBy('status')
-        .orderBy('deliveredAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          final now = DateTime.now();
+          final messages = snapshot.docs
               .map((doc) => ScheduledMessage.fromFirestore(doc))
-              .toList(),
-        );
+              .where((message) => 
+                  message.isDelivered() || 
+                  (message.isPending() && message.scheduledFor.isBefore(now))
+              )
+              .toList();
+          
+          // Sort messages: delivered first, then by time descending
+          messages.sort((a, b) {
+            final aTime = a.isDelivered() ? (a.deliveredAt ?? a.scheduledFor) : a.scheduledFor;
+            final bTime = b.isDelivered() ? (b.deliveredAt ?? b.scheduledFor) : b.scheduledFor;
+            
+            if (a.isDelivered() && !b.isDelivered()) {
+              return -1;
+            } else if (!a.isDelivered() && b.isDelivered()) {
+              return 1;
+            } else {
+              return bTime.compareTo(aTime);
+            }
+          });
+          
+          return messages;
+        });
   }
 
   // Manual trigger for message delivery (for testing purposes)
@@ -412,6 +633,66 @@ class ScheduledMessageService {
       return message.senderId == userId || message.recipientId == userId;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Force refresh of message status from Firestore
+  /// This method can be used to ensure UI shows the latest status
+  Future<ScheduledMessage?> refreshMessageStatus(String messageId) async {
+    try {
+      if (messageId.isEmpty) {
+        return null;
+      }
+
+      // Force a fresh read from Firestore (not from cache)
+      final doc = await _firestore
+          .collection('scheduledMessages')
+          .doc(messageId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!doc.exists) {
+        return null;
+      }
+
+      return ScheduledMessage.fromFirestore(doc);
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to refresh message status: ${ErrorHandler.getErrorMessage(e)}',
+      );
+    }
+  }
+
+  /// Batch refresh multiple message statuses
+  Future<List<ScheduledMessage>> refreshMultipleMessageStatuses(List<String> messageIds) async {
+    try {
+      if (messageIds.isEmpty) {
+        return [];
+      }
+
+      final refreshedMessages = <ScheduledMessage>[];
+      
+      // Process in batches of 10 to avoid Firestore limits
+      for (int i = 0; i < messageIds.length; i += 10) {
+        final batch = messageIds.skip(i).take(10).toList();
+        final futures = batch.map((id) => refreshMessageStatus(id));
+        final results = await Future.wait(futures);
+        
+        refreshedMessages.addAll(results.whereType<ScheduledMessage>());
+      }
+
+      return refreshedMessages;
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception(
+        'Failed to refresh multiple message statuses: ${ErrorHandler.getErrorMessage(e)}',
+      );
     }
   }
 }

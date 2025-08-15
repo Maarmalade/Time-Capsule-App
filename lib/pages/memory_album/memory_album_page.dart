@@ -96,8 +96,8 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
             children: [
               Expanded(
                 child: StreamBuilder<List<FolderModel>>(
-                  stream: _folderService.streamFolders(
-                    userId: userId,
+                  stream: _folderService.streamUserAccessibleFolders(
+                    userId,
                     parentFolderId: null,
                   ),
                   builder: (context, snapshot) {

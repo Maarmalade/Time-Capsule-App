@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/scheduled_message_model.dart';
@@ -6,6 +8,7 @@ import '../../services/scheduled_message_service.dart';
 import '../../services/friend_service.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/profile_picture_widget.dart';
+import '../../widgets/media_attachment_widget.dart';
 
 class ScheduledMessagesPage extends StatefulWidget {
   const ScheduledMessagesPage({super.key});
@@ -31,6 +34,15 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    
+    // Set up periodic refresh to catch status updates
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted) {
+        _refreshData();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   @override
@@ -72,6 +84,28 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
     }
   }
 
+  /// Refresh data to ensure latest status is displayed
+  Future<void> _refreshData() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Refresh both scheduled and received messages
+      final results = await Future.wait([
+        _messageService.getScheduledMessages(currentUser.uid),
+        _messageService.getReceivedMessages(currentUser.uid),
+      ]);
+
+      setState(() {
+        _scheduledMessages = results[0];
+        _receivedMessages = results[1];
+      });
+    } catch (e) {
+      // Silently handle refresh errors to avoid disrupting user experience
+      debugPrint('Error refreshing message data: $e');
+    }
+  }
+
   Future<void> _showCreateMessageDialog() async {
     await showDialog(
       context: context,
@@ -82,32 +116,7 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
     );
   }
 
-  Future<void> _testMessageDelivery() async {
-    try {
-      final result = await _messageService.triggerMessageDelivery();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Message delivery triggered'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Reload data to show updated message status
-        _loadData();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${ErrorHandler.getErrorMessage(e)}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,14 +127,6 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
         title: const Text('Scheduled Messages'),
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,
-        actions: [
-          // Test button for manual message delivery
-          IconButton(
-            icon: const Icon(Icons.play_arrow),
-            tooltip: 'Test Message Delivery',
-            onPressed: _testMessageDelivery,
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -357,11 +358,35 @@ class _CreateScheduledMessageDialogState
   DateTime? _selectedDateTime;
   bool _isCreating = false;
   String? _errorMessage;
+  
+  // Media attachment state
+  List<File> _selectedImages = [];
+  File? _selectedVideo;
+  bool _isUploadingMedia = false;
+  double _uploadProgress = 0.0;
 
   @override
   void dispose() {
     _textController.dispose();
     super.dispose();
+  }
+
+  void _onImagesChanged(List<File> images) {
+    setState(() {
+      _selectedImages = images;
+    });
+  }
+
+  void _onVideoChanged(File? video) {
+    setState(() {
+      _selectedVideo = video;
+    });
+  }
+
+  bool _hasContent() {
+    return _textController.text.trim().isNotEmpty || 
+           _selectedImages.isNotEmpty || 
+           _selectedVideo != null;
   }
 
   Future<void> _selectDateTime() async {
@@ -402,9 +427,19 @@ class _CreateScheduledMessageDialogState
       return;
     }
 
+    // Validate that there's some content (text or media)
+    if (!_hasContent()) {
+      setState(() {
+        _errorMessage = 'Please add a message or media attachment';
+      });
+      return;
+    }
+
     try {
       setState(() {
         _isCreating = true;
+        _isUploadingMedia = _selectedImages.isNotEmpty || _selectedVideo != null;
+        _uploadProgress = 0.0;
         _errorMessage = null;
       });
 
@@ -420,28 +455,68 @@ class _CreateScheduledMessageDialogState
         senderId: currentUser.uid,
         recipientId: recipientId,
         textContent: _textController.text.trim(),
-        videoUrl: null, // TODO: Add video support
+        imageUrls: null, // Will be set by createScheduledMessageWithMedia
+        videoUrl: null, // Will be set by createScheduledMessageWithMedia
         scheduledFor: _selectedDateTime!,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         status: ScheduledMessageStatus.pending,
       );
 
-      await _messageService.createScheduledMessage(message);
+      // Use createScheduledMessageWithMedia if there are media attachments
+      if (_selectedImages.isNotEmpty || _selectedVideo != null) {
+        // Simulate upload progress for better UX
+        _simulateUploadProgress();
+        
+        await _messageService.createScheduledMessageWithMedia(
+          message,
+          _selectedImages.isNotEmpty ? _selectedImages : null,
+          _selectedVideo,
+        );
+      } else {
+        // Use regular createScheduledMessage for text-only messages
+        await _messageService.createScheduledMessage(message);
+      }
 
       if (mounted) {
         Navigator.of(context).pop();
         widget.onMessageCreated();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Message scheduled successfully')),
+          SnackBar(
+            content: Text(
+              _selectedImages.isNotEmpty || _selectedVideo != null
+                  ? 'Message with media scheduled successfully'
+                  : 'Message scheduled successfully',
+            ),
+          ),
         );
       }
     } catch (e) {
       setState(() {
         _errorMessage = ErrorHandler.getErrorMessage(e);
         _isCreating = false;
+        _isUploadingMedia = false;
+        _uploadProgress = 0.0;
       });
     }
+  }
+
+  void _simulateUploadProgress() {
+    // Simulate upload progress for better user experience
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted || !_isUploadingMedia) {
+        timer.cancel();
+        return;
+      }
+      
+      setState(() {
+        _uploadProgress += 0.05;
+        if (_uploadProgress >= 1.0) {
+          _uploadProgress = 1.0;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   @override
@@ -450,14 +525,15 @@ class _CreateScheduledMessageDialogState
 
     return Dialog(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 800),
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'Create Scheduled Message',
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -529,11 +605,40 @@ class _CreateScheduledMessageDialogState
                 maxLines: 4,
                 maxLength: 5000,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a message';
+                  // Text is optional if media is attached
+                  if ((value == null || value.trim().isEmpty) && 
+                      _selectedImages.isEmpty && _selectedVideo == null) {
+                    return 'Please enter a message or add media';
                   }
                   return null;
                 },
+                onChanged: (value) {
+                  // Clear error when user starts typing
+                  if (_errorMessage != null) {
+                    setState(() {
+                      _errorMessage = null;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Media Attachments
+              Text(
+                'Media Attachments:',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              MediaAttachmentWidget(
+                selectedImages: _selectedImages,
+                selectedVideo: _selectedVideo,
+                onImagesChanged: _onImagesChanged,
+                onVideoChanged: _onVideoChanged,
+                maxImages: 5,
+                maxImageSizeMB: 10,
+                maxVideoSizeMB: 50,
               ),
               const SizedBox(height: 16),
 
@@ -572,6 +677,55 @@ class _CreateScheduledMessageDialogState
                   ),
                 ),
               ),
+
+              // Upload progress indicator
+              if (_isUploadingMedia) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.cloud_upload,
+                            color: theme.colorScheme.onPrimaryContainer,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Uploading media...',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: _uploadProgress,
+                        backgroundColor: theme.colorScheme.onPrimaryContainer.withOpacity(0.3),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(_uploadProgress * 100).toInt()}%',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
@@ -628,6 +782,7 @@ class _CreateScheduledMessageDialogState
                 ],
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -731,6 +886,13 @@ class ScheduledMessageCard extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
             ),
+
+            // Media attachments display
+            if (message.hasMedia()) ...[
+              const SizedBox(height: 12),
+              _buildMediaSection(theme),
+            ],
+
             const SizedBox(height: 12),
 
             // Delivery info and actions
@@ -743,13 +905,13 @@ class ScheduledMessageCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.schedule,
+                            _getDeliveryIcon(),
                             size: 16,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Delivers: ${_formatDateTime(message.scheduledFor)}',
+                            _getDeliveryText(),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -795,6 +957,122 @@ class ScheduledMessageCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildMediaSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Attachments:',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 80,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // Display image thumbnails
+              if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
+                ...message.imageUrls!.map((imageUrl) => _buildImageThumbnail(imageUrl, theme)),
+              
+              // Display video preview
+              if (message.videoUrl != null)
+                _buildVideoThumbnail(message.videoUrl!, theme),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageThumbnail(String imageUrl, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.broken_image,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 32,
+              ),
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        color: theme.colorScheme.surfaceContainerHighest,
+      ),
+      child: Icon(
+        Icons.videocam,
+        color: theme.colorScheme.onSurfaceVariant,
+        size: 32,
+      ),
+    );
+  }
+
+  IconData _getDeliveryIcon() {
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        return Icons.schedule;
+      case ScheduledMessageStatus.delivered:
+        return Icons.check_circle;
+      case ScheduledMessageStatus.failed:
+        return Icons.error;
+    }
+  }
+
+  String _getDeliveryText() {
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        return 'Delivers: ${_formatDateTime(message.scheduledFor)}';
+      case ScheduledMessageStatus.delivered:
+        return message.deliveredAt != null 
+            ? 'Delivered: ${_formatDateTime(message.deliveredAt!)}'
+            : 'Delivered: ${_formatDateTime(message.scheduledFor)}';
+      case ScheduledMessageStatus.failed:
+        return 'Failed to deliver: ${_formatDateTime(message.scheduledFor)}';
+    }
   }
 
   Widget _buildStatusChip(ThemeData theme) {
@@ -911,7 +1189,7 @@ class ReceivedMessageCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with sender info
+              // Header with sender info and status
               Row(
                 children: [
                   if (isFromSelf) ...[
@@ -938,11 +1216,7 @@ class ReceivedMessageCard extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  Icon(
-                    Icons.check_circle,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
+                  _buildStatusChip(theme),
                 ],
               ),
               const SizedBox(height: 12),
@@ -962,19 +1236,26 @@ class ReceivedMessageCard extends StatelessWidget {
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
+
+              // Media attachments display
+              if (message.hasMedia()) ...[
+                const SizedBox(height: 12),
+                _buildMediaSection(theme),
+              ],
+
               const SizedBox(height: 12),
 
-              // Delivery info
+              // Delivery info and action
               Row(
                 children: [
                   Icon(
-                    Icons.access_time,
+                    _getDeliveryIcon(),
                     size: 16,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Delivered: ${_formatDateTime(message.deliveredAt ?? message.scheduledFor)}',
+                    _getDeliveryText(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -1000,6 +1281,173 @@ class ReceivedMessageCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildStatusChip(ThemeData theme) {
+    Color backgroundColor;
+    Color textColor;
+    IconData icon;
+    String text;
+
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        backgroundColor = theme.colorScheme.primaryContainer;
+        textColor = theme.colorScheme.onPrimaryContainer;
+        icon = Icons.schedule;
+        text = 'Pending';
+        break;
+      case ScheduledMessageStatus.delivered:
+        backgroundColor = theme.colorScheme.secondaryContainer;
+        textColor = theme.colorScheme.onSecondaryContainer;
+        icon = Icons.check_circle;
+        text = 'Delivered';
+        break;
+      case ScheduledMessageStatus.failed:
+        backgroundColor = theme.colorScheme.errorContainer;
+        textColor = theme.colorScheme.onErrorContainer;
+        icon = Icons.error;
+        text = 'Failed';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Attachments:',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 80,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // Display image thumbnails
+              if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
+                ...message.imageUrls!.map((imageUrl) => _buildImageThumbnail(imageUrl, theme)),
+              
+              // Display video preview
+              if (message.videoUrl != null)
+                _buildVideoThumbnail(message.videoUrl!, theme),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageThumbnail(String imageUrl, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.broken_image,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 32,
+              ),
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        color: theme.colorScheme.surfaceContainerHighest,
+      ),
+      child: Icon(
+        Icons.videocam,
+        color: theme.colorScheme.onSurfaceVariant,
+        size: 32,
+      ),
+    );
+  }
+
+  IconData _getDeliveryIcon() {
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        return Icons.schedule;
+      case ScheduledMessageStatus.delivered:
+        return Icons.check_circle;
+      case ScheduledMessageStatus.failed:
+        return Icons.error;
+    }
+  }
+
+  String _getDeliveryText() {
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        return 'Ready: ${_formatDateTime(message.scheduledFor)}';
+      case ScheduledMessageStatus.delivered:
+        return message.deliveredAt != null 
+            ? 'Delivered: ${_formatDateTime(message.deliveredAt!)}'
+            : 'Delivered: ${_formatDateTime(message.scheduledFor)}';
+      case ScheduledMessageStatus.failed:
+        return 'Failed: ${_formatDateTime(message.scheduledFor)}';
+    }
   }
 
   void _showFullMessage(BuildContext context) {
@@ -1132,46 +1580,10 @@ class MessageViewDialog extends StatelessWidget {
                       ),
                     ),
 
-                    // Video placeholder (if video exists)
-                    if (message.videoUrl != null) ...[
+                    // Media attachments
+                    if (message.hasMedia()) ...[
                       const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.2,
-                            ),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.play_circle_outline,
-                              size: 48,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Video Message',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Tap to play',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildFullMediaSection(theme),
                     ],
 
                     const SizedBox(height: 20),
@@ -1225,6 +1637,135 @@ class MessageViewDialog extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFullMediaSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Attachments',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Display images in a grid
+        if (message.imageUrls != null && message.imageUrls!.isNotEmpty) ...[
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1,
+            ),
+            itemCount: message.imageUrls!.length,
+            itemBuilder: (context, index) {
+              return _buildFullImageThumbnail(message.imageUrls![index], theme);
+            },
+          ),
+          if (message.videoUrl != null) const SizedBox(height: 16),
+        ],
+        
+        // Display video
+        if (message.videoUrl != null)
+          _buildFullVideoThumbnail(message.videoUrl!, theme),
+      ],
+    );
+  }
+
+  Widget _buildFullImageThumbnail(String imageUrl, ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.broken_image,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Image unavailable',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullVideoThumbnail(String videoUrl, ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      height: 200,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.play_circle_outline,
+            size: 64,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Video Message',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tap to play',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

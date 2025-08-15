@@ -274,8 +274,8 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
             children: [
               Expanded(
                 child: StreamBuilder<List<FolderModel>>(
-                  stream: _folderService.streamFolders(
-                    userId: FirebaseAuth.instance.currentUser!.uid,
+                  stream: _folderService.streamUserAccessibleFolders(
+                    FirebaseAuth.instance.currentUser!.uid,
                     parentFolderId: widget.folder.id,
                   ),
                   builder: (context, folderSnap) {

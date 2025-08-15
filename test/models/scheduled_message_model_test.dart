@@ -24,9 +24,11 @@ void main() {
         senderId: 'sender-id',
         recipientId: 'recipient-id',
         textContent: 'Hello from the past!',
+        imageUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
         videoUrl: 'https://example.com/video.mp4',
         scheduledFor: futureDate,
         createdAt: testDate,
+        updatedAt: testDate,
         status: ScheduledMessageStatus.pending,
       );
     });
@@ -37,14 +39,16 @@ void main() {
         expect(testScheduledMessage.senderId, equals('sender-id'));
         expect(testScheduledMessage.recipientId, equals('recipient-id'));
         expect(testScheduledMessage.textContent, equals('Hello from the past!'));
+        expect(testScheduledMessage.imageUrls, equals(['https://example.com/image1.jpg', 'https://example.com/image2.jpg']));
         expect(testScheduledMessage.videoUrl, equals('https://example.com/video.mp4'));
         expect(testScheduledMessage.scheduledFor, equals(futureDate));
         expect(testScheduledMessage.createdAt, equals(testDate));
+        expect(testScheduledMessage.updatedAt, equals(testDate));
         expect(testScheduledMessage.status, equals(ScheduledMessageStatus.pending));
         expect(testScheduledMessage.deliveredAt, isNull);
       });
 
-      test('should create ScheduledMessage with null video URL', () {
+      test('should create ScheduledMessage with null video URL and imageUrls', () {
         final message = ScheduledMessage(
           id: 'test-message-id',
           senderId: 'sender-id',
@@ -52,10 +56,12 @@ void main() {
           textContent: 'Hello from the past!',
           scheduledFor: futureDate,
           createdAt: testDate,
+          updatedAt: testDate,
           status: ScheduledMessageStatus.pending,
         );
 
         expect(message.videoUrl, isNull);
+        expect(message.imageUrls, isNull);
       });
     });
 
@@ -66,9 +72,11 @@ void main() {
           'senderId': 'sender-id',
           'recipientId': 'recipient-id',
           'textContent': 'Hello from the past!',
+          'imageUrls': ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
           'videoUrl': 'https://example.com/video.mp4',
           'scheduledFor': Timestamp.fromDate(futureDate),
           'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
           'status': 'pending',
           'deliveredAt': null,
         };
@@ -82,9 +90,11 @@ void main() {
         expect(message.senderId, equals('sender-id'));
         expect(message.recipientId, equals('recipient-id'));
         expect(message.textContent, equals('Hello from the past!'));
+        expect(message.imageUrls, equals(['https://example.com/image1.jpg', 'https://example.com/image2.jpg']));
         expect(message.videoUrl, equals('https://example.com/video.mp4'));
         expect(message.scheduledFor, equals(futureDate));
         expect(message.createdAt, equals(testDate));
+        expect(message.updatedAt, equals(testDate));
         expect(message.status, equals(ScheduledMessageStatus.pending));
         expect(message.deliveredAt, isNull);
       });
@@ -97,6 +107,7 @@ void main() {
           'textContent': 'Hello from the past!',
           'scheduledFor': Timestamp.fromDate(futureDate),
           'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
           'status': 'delivered',
           'deliveredAt': Timestamp.fromDate(deliveredDate),
         };
@@ -118,6 +129,7 @@ void main() {
           'textContent': 'Hello from the past!',
           'scheduledFor': Timestamp.fromDate(futureDate),
           'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
           'status': 'failed',
         };
 
@@ -134,6 +146,7 @@ void main() {
         final data = {
           'scheduledFor': Timestamp.fromDate(futureDate),
           'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
         };
 
         when(mockDoc.id).thenReturn('test-message-id');
@@ -144,6 +157,7 @@ void main() {
         expect(message.senderId, equals(''));
         expect(message.recipientId, equals(''));
         expect(message.textContent, equals(''));
+        expect(message.imageUrls, isNull);
         expect(message.videoUrl, isNull);
         expect(message.status, equals(ScheduledMessageStatus.pending));
       });
@@ -156,6 +170,7 @@ void main() {
           'textContent': 'Hello from the past!',
           'scheduledFor': Timestamp.fromDate(futureDate),
           'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
           'status': 'invalid-status',
         };
 
@@ -166,6 +181,29 @@ void main() {
 
         expect(message.status, equals(ScheduledMessageStatus.pending));
       });
+
+      test('should handle null imageUrls from Firestore', () {
+        final mockDoc = MockDocumentSnapshot();
+        final data = {
+          'senderId': 'sender-id',
+          'recipientId': 'recipient-id',
+          'textContent': 'Hello from the past!',
+          'imageUrls': null,
+          'videoUrl': 'https://example.com/video.mp4',
+          'scheduledFor': Timestamp.fromDate(futureDate),
+          'createdAt': Timestamp.fromDate(testDate),
+          'updatedAt': Timestamp.fromDate(testDate),
+          'status': 'pending',
+        };
+
+        when(mockDoc.id).thenReturn('test-message-id');
+        when(mockDoc.data()).thenReturn(data);
+
+        final message = ScheduledMessage.fromFirestore(mockDoc);
+
+        expect(message.imageUrls, isNull);
+        expect(message.videoUrl, equals('https://example.com/video.mp4'));
+      });
     });
 
     group('toFirestore', () {
@@ -175,13 +213,16 @@ void main() {
         expect(firestoreData['senderId'], equals('sender-id'));
         expect(firestoreData['recipientId'], equals('recipient-id'));
         expect(firestoreData['textContent'], equals('Hello from the past!'));
+        expect(firestoreData['imageUrls'], equals(['https://example.com/image1.jpg', 'https://example.com/image2.jpg']));
         expect(firestoreData['videoUrl'], equals('https://example.com/video.mp4'));
         expect(firestoreData['status'], equals('pending'));
         expect(firestoreData['scheduledFor'], isA<Timestamp>());
         expect(firestoreData['createdAt'], isA<Timestamp>());
+        expect(firestoreData['updatedAt'], isA<Timestamp>());
         expect(firestoreData['deliveredAt'], isNull);
         expect((firestoreData['scheduledFor'] as Timestamp).toDate(), equals(futureDate));
         expect((firestoreData['createdAt'] as Timestamp).toDate(), equals(testDate));
+        expect((firestoreData['updatedAt'] as Timestamp).toDate(), equals(testDate));
       });
 
       test('should handle delivered status with delivered date', () {
@@ -222,7 +263,18 @@ void main() {
         expect(copiedMessage.id, equals(testScheduledMessage.id));
         expect(copiedMessage.senderId, equals(testScheduledMessage.senderId));
         expect(copiedMessage.recipientId, equals(testScheduledMessage.recipientId));
+        expect(copiedMessage.imageUrls, equals(testScheduledMessage.imageUrls));
         expect(copiedMessage.status, equals(testScheduledMessage.status));
+      });
+
+      test('should create copy with updated imageUrls', () {
+        final newImageUrls = ['https://example.com/new-image.jpg'];
+        final updatedMessage = testScheduledMessage.copyWith(imageUrls: newImageUrls);
+
+        expect(updatedMessage.id, equals(testScheduledMessage.id));
+        expect(updatedMessage.imageUrls, equals(newImageUrls));
+        expect(updatedMessage.textContent, equals(testScheduledMessage.textContent));
+        expect(updatedMessage.videoUrl, equals(testScheduledMessage.videoUrl));
       });
     });
 
@@ -264,6 +316,62 @@ void main() {
           scheduledFor: DateTime.now().subtract(const Duration(days: 1)),
         );
         expect(message.isValid(), isFalse);
+      });
+
+      test('isValid should return false for time less than 1 minute in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(seconds: 30)),
+        );
+        expect(message.isValid(), isFalse);
+      });
+
+      test('isValid should return true for time more than 1 minute in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(minutes: 2)),
+        );
+        expect(message.isValid(), isTrue);
+      });
+
+      test('isValidScheduledTime should return true for time more than 1 minute in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(minutes: 2)),
+        );
+        expect(message.isValidScheduledTime(), isTrue);
+      });
+
+      test('isValidScheduledTime should return false for time less than 1 minute in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(seconds: 30)),
+        );
+        expect(message.isValidScheduledTime(), isFalse);
+      });
+
+      test('isValidScheduledTime should return false for past time', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().subtract(const Duration(minutes: 1)),
+        );
+        expect(message.isValidScheduledTime(), isFalse);
+      });
+
+      test('isValidScheduledTime should return false for exactly 1 minute in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(minutes: 1)),
+        );
+        expect(message.isValidScheduledTime(), isFalse);
+      });
+
+      test('isValidScheduledTime should return true for exactly 1 minute and 1 second in future', () {
+        final message = testScheduledMessage.copyWith(
+          scheduledFor: DateTime.now().add(const Duration(minutes: 1, seconds: 1)),
+        );
+        expect(message.isValidScheduledTime(), isTrue);
+      });
+
+      test('isValidScheduledTime should allow scheduling within same hour', () {
+        final now = DateTime.now();
+        final sameHourTime = DateTime(now.year, now.month, now.day, now.hour, now.minute + 5);
+        final message = testScheduledMessage.copyWith(scheduledFor: sameHourTime);
+        expect(message.isValidScheduledTime(), isTrue);
       });
 
       test('isPending should return true for pending status', () {
@@ -349,6 +457,135 @@ void main() {
       });
     });
 
+    group('media validation methods', () {
+      test('hasMedia should return true when message has images', () {
+        final messageWithImages = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: ['https://example.com/image1.jpg'],
+          videoUrl: null,
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        expect(messageWithImages.hasMedia(), isTrue);
+      });
+
+      test('hasMedia should return true when message has video', () {
+        final messageWithVideo = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: null,
+          videoUrl: 'https://example.com/video.mp4',
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        expect(messageWithVideo.hasMedia(), isTrue);
+      });
+
+      test('hasMedia should return true when message has both images and video', () {
+        expect(testScheduledMessage.hasMedia(), isTrue);
+      });
+
+      test('hasMedia should return false when message has no media', () {
+        final messageWithoutMedia = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: null,
+          videoUrl: null,
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        expect(messageWithoutMedia.hasMedia(), isFalse);
+      });
+
+      test('hasMedia should return false when imageUrls is empty list', () {
+        final messageWithEmptyImages = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: [],
+          videoUrl: null,
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        expect(messageWithEmptyImages.hasMedia(), isFalse);
+      });
+
+      test('getAllMediaUrls should return all image and video URLs', () {
+        final allUrls = testScheduledMessage.getAllMediaUrls();
+        expect(allUrls, contains('https://example.com/image1.jpg'));
+        expect(allUrls, contains('https://example.com/image2.jpg'));
+        expect(allUrls, contains('https://example.com/video.mp4'));
+        expect(allUrls.length, equals(3));
+      });
+
+      test('getAllMediaUrls should return only image URLs when no video', () {
+        final messageWithOnlyImages = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
+          videoUrl: null,
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        final allUrls = messageWithOnlyImages.getAllMediaUrls();
+        expect(allUrls, equals(['https://example.com/image1.jpg', 'https://example.com/image2.jpg']));
+      });
+
+      test('getAllMediaUrls should return only video URL when no images', () {
+        final messageWithOnlyVideo = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: null,
+          videoUrl: 'https://example.com/video.mp4',
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        final allUrls = messageWithOnlyVideo.getAllMediaUrls();
+        expect(allUrls, equals(['https://example.com/video.mp4']));
+      });
+
+      test('getAllMediaUrls should return empty list when no media', () {
+        final messageWithoutMedia = ScheduledMessage(
+          id: 'test-id',
+          senderId: 'sender-id',
+          recipientId: 'recipient-id',
+          textContent: 'Hello!',
+          imageUrls: null,
+          videoUrl: null,
+          scheduledFor: DateTime.now().add(Duration(hours: 1)),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          status: ScheduledMessageStatus.pending,
+        );
+        final allUrls = messageWithoutMedia.getAllMediaUrls();
+        expect(allUrls, isEmpty);
+      });
+    });
+
     group('equality', () {
       test('should be equal when all fields match', () {
         final message1 = ScheduledMessage(
@@ -356,9 +593,11 @@ void main() {
           senderId: 'sender-id',
           recipientId: 'recipient-id',
           textContent: 'Hello from the past!',
+          imageUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
           videoUrl: 'https://example.com/video.mp4',
           scheduledFor: futureDate,
           createdAt: testDate,
+          updatedAt: testDate,
           status: ScheduledMessageStatus.pending,
         );
 
@@ -367,9 +606,11 @@ void main() {
           senderId: 'sender-id',
           recipientId: 'recipient-id',
           textContent: 'Hello from the past!',
+          imageUrls: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
           videoUrl: 'https://example.com/video.mp4',
           scheduledFor: futureDate,
           createdAt: testDate,
+          updatedAt: testDate,
           status: ScheduledMessageStatus.pending,
         );
 
@@ -402,7 +643,7 @@ void main() {
         final stringRepresentation = message.toString();
 
         expect(stringRepresentation, contains('...'));
-        expect(stringRepresentation.length, lessThan(longText.length + 200));
+        expect(stringRepresentation.length, lessThan(longText.length + 400)); // Increased limit due to additional fields
       });
     });
   });

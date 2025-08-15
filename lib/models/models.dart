@@ -8,5 +8,6 @@ export 'message_model.dart';
 export 'nostalgia_reminder_model.dart';
 export 'scheduled_message_model.dart';
 export 'shared_folder_data.dart';
+export 'shared_folder_notification_model.dart';
 export 'user_model.dart';
 export 'user_profile.dart';

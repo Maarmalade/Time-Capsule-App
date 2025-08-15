@@ -61,11 +61,12 @@ exports.processScheduledMessages = onSchedule({
       } catch (error) {
         logger.error(`Failed to deliver message ${messageId}:`, error);
         
-        // Update message status to failed
+        // Update message status to failed with atomic operation
         await doc.ref.update({
           status: 'failed',
           failureReason: error.message,
           failedAt: admin.firestore.Timestamp.now(),
+          updatedAt: admin.firestore.Timestamp.now(),
         });
       }
     });
@@ -89,16 +90,17 @@ async function deliverMessage(messageId, messageData) {
   const deliveredAt = admin.firestore.Timestamp.now();
   
   try {
-    // Update message status to delivered
+    // Update message status to delivered with atomic operation
     await db.collection('scheduledMessages').doc(messageId).update({
       status: 'delivered',
       deliveredAt: deliveredAt,
+      updatedAt: deliveredAt, // Ensure updatedAt is also set
     });
     
     // Send push notification to recipient
     await sendDeliveryNotification(messageData);
     
-    logger.info(`Message ${messageId} delivered successfully`);
+    logger.info(`Message ${messageId} delivered successfully at ${deliveredAt.toDate().toISOString()}`);
     
   } catch (error) {
     logger.error(`Error delivering message ${messageId}:`, error);
@@ -489,6 +491,7 @@ exports.triggerMessageDelivery = onCall({
           status: 'failed',
           failureReason: error.message,
           failedAt: admin.firestore.Timestamp.now(),
+          updatedAt: admin.firestore.Timestamp.now(),
         });
       }
     }
