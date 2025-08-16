@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../utils/comprehensive_error_handler.dart';
+import '../utils/validation_utils.dart';
 
 class MediaAttachmentWidget extends StatefulWidget {
   final List<File> selectedImages;
@@ -152,8 +154,15 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
         _validationError = null;
       });
 
+      // Check if we can add more images
+      if (widget.selectedImages.length >= widget.maxImages) {
+        setState(() {
+          _validationError = 'Maximum ${widget.maxImages} images allowed. Remove some images to add more.';
+        });
+        return;
+      }
+
       // Use pickImage with gallery source for single image selection
-      // For multiple images, we'll need to call this multiple times or use a different approach
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1920,
@@ -162,32 +171,22 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       );
 
       if (pickedFile != null) {
-        // Check if we can add more images
-        if (widget.selectedImages.length >= widget.maxImages) {
-          setState(() {
-            _validationError = 'Maximum ${widget.maxImages} images allowed';
-          });
-          return;
-        }
-
         final File file = File(pickedFile.path);
         
-        // Validate file size
-        final int fileSizeInBytes = await file.length();
-        final double fileSizeInMB = fileSizeInBytes / (1024 * 1024);
-        
-        if (fileSizeInMB > widget.maxImageSizeMB) {
-          setState(() {
-            _validationError = 'Image is too large (${fileSizeInMB.toStringAsFixed(1)}MB > ${widget.maxImageSizeMB}MB)';
-          });
-          return;
-        }
+        // Enhanced file validation using comprehensive error handler
+        final validationError = await ComprehensiveErrorHandler.validateFileForUpload(
+          file,
+          expectedType: 'image',
+          maxSizeBytes: widget.maxImageSizeMB * 1024 * 1024,
+          allowedExtensions: ValidationUtils.allowedImageExtensions,
+        );
 
-        // Validate file type
-        final String extension = pickedFile.path.toLowerCase().split('.').last;
-        if (!['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
+        if (validationError != null) {
           setState(() {
-            _validationError = 'Unsupported image format: $extension';
+            _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(
+              validationError, 
+              mediaType: 'image'
+            );
           });
           return;
         }
@@ -197,7 +196,7 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       }
     } catch (e) {
       setState(() {
-        _validationError = 'Failed to select images: $e';
+        _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(e, mediaType: 'image');
       });
     }
   }
@@ -216,22 +215,20 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       if (pickedFile != null) {
         final File file = File(pickedFile.path);
         
-        // Validate file size
-        final int fileSizeInBytes = await file.length();
-        final double fileSizeInMB = fileSizeInBytes / (1024 * 1024);
-        
-        if (fileSizeInMB > widget.maxVideoSizeMB) {
-          setState(() {
-            _validationError = 'Video is too large (${fileSizeInMB.toStringAsFixed(1)}MB > ${widget.maxVideoSizeMB}MB)';
-          });
-          return;
-        }
+        // Enhanced file validation using comprehensive error handler
+        final validationError = await ComprehensiveErrorHandler.validateFileForUpload(
+          file,
+          expectedType: 'video',
+          maxSizeBytes: widget.maxVideoSizeMB * 1024 * 1024,
+          allowedExtensions: ValidationUtils.allowedVideoExtensions,
+        );
 
-        // Validate file type
-        final String extension = pickedFile.path.toLowerCase().split('.').last;
-        if (!['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extension)) {
+        if (validationError != null) {
           setState(() {
-            _validationError = 'Unsupported video format: $extension';
+            _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(
+              validationError, 
+              mediaType: 'video'
+            );
           });
           return;
         }
@@ -240,7 +237,7 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       }
     } catch (e) {
       setState(() {
-        _validationError = 'Failed to select video: $e';
+        _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(e, mediaType: 'video');
       });
     }
   }

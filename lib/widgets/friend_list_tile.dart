@@ -107,7 +107,7 @@ class SelectableFriendListTile extends StatelessWidget {
           fontWeight: FontWeight.w500,
           color: enabled 
               ? null 
-              : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+              : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
         ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

@@ -108,7 +108,12 @@
   - _Requirements: 4.1, 4.2_
 -
 
-- [ ] 10. Fix shared folder access and real-time updates
+- [x] 10. Fix shared folder access and real-time updates
+
+
+
+
+
 
 
 
@@ -119,8 +124,13 @@
   - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6_
 -
 
+- [x] 11. Add contributor management features for folder owners
+
+
+
 
 - [ ] 11. Add contributor management features for folder owners
+
 
   - Implement getFolderContributors() method to retrieve contributor list
   - Create removeContributor() method with proper access validation
@@ -130,8 +140,14 @@
 
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
+-
 
 - [ ] 12. Remove lock folder functionality
+
+
+
+
+
 
   - Remove isLocked and lockedAt fields from FolderModel usage in UI
 
@@ -142,7 +158,11 @@ ns menus to exclude lock folder functionality
   - _Requirements: 5.6_
 
 
-- [ ] 13. Simplify friend interaction dialog
+
+- [x] 13. Simplify friend interaction dialog
+
+
+
 
 
   - Update friend action dialog t
@@ -154,7 +174,11 @@ dFoldersPage when "Shared Folders" is selected
   --_Requirements: 6.1, 6.4, 6.5_
 
 
+
+
+
 - [ ] 14. Create SharedFoldersPage for friend interactions
+
 
   - Build new page to display folders shared between current user and selected friend
 
@@ -162,14 +186,20 @@ dFoldersPage when "Shared Folders" is selected
 
   - Add navigation from friend actions to this shared folders view
   - Allow users to access and interact with shared folder content from this page
+
+
+
   - _Requirements: 6.2, 6.3, 6.6_
 
 
 
 - [ ] 15. Enhance ProfilePictureService with global state management
 
+
   - Add static profile picture cache with Map<String, String?> structur
 e
+
+
   - Implement StreamController for broadcasting profile picture updates
   - Create clearCacheForUser() method for user switching scenarios
   - Add updateProfilePicture
@@ -180,6 +210,11 @@ Globally() method for consistent updates
 - [ ] 16. Fix profile picture consistency across all screens
 
 
+
+
+
+
+
   - Update ProfilePictureWidget to listen to global profil
 
 e picture updates
@@ -187,8 +222,19 @@ e picture updates
 ccounts
   - Ensure profile pictures update immediately across home, profile, and memory screens
   - Add proper error handling and default avatar fallbacks
+
+
+
+
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.6_
 - [ ] 17. Implement profile picture caching and refresh logic
+
+
+
+
+
+
+
 
 
 - [ ] 17. Implement profile picture caching and refresh logic
@@ -196,10 +242,13 @@ ccounts
   - Add intelligent caching with expiration policies in ProfilePictureService
   - Implement background refresh of expired cache entries
   - Create efficient memory management for profile picture cache
+
+
   - Add cache invalidation when profile pictures are updated
   - _Requirements: 7.5, 7.7_
 
 - [ ] 18. Update Cloud Function for proper message delivery status
+
 
   - Modify message delivery Cloud Function to set proper deliveredAt timestamp
   - Ensure status updates from 'pending' to 'delivered' are atomic
@@ -209,6 +258,8 @@ ccounts
 
 - [ ] 19. Add comprehensive error handling and validation
 
+
+
   - Implement proper error messages for media upload failures
   - Add validation feedback for scheduled message time selection
   - Create fallback mechanisms for shared folder access issues
@@ -216,6 +267,7 @@ ccounts
   - _Requirements: 1.2, 2.3, 4.6, 7.6_
 
 - [ ] 20. Test and validate all implemented features
+
 
   - Test scheduled message creation with multiple images and video
   - Verify shared folder contributor notifications and access

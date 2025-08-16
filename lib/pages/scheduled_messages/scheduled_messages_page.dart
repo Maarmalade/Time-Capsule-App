@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/scheduled_message_model.dart';
@@ -9,6 +10,53 @@ import '../../services/friend_service.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../widgets/media_attachment_widget.dart';
+
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({super.key, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image, color: Colors.white, size: 64),
+                    SizedBox(height: 16),
+                    Text(
+                      'Failed to load image',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class ScheduledMessagesPage extends StatefulWidget {
   const ScheduledMessagesPage({super.key});
@@ -29,26 +77,66 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
   bool _isLoading = true;
   String? _errorMessage;
 
+  // Stream subscriptions for real-time updates
+  StreamSubscription<List<ScheduledMessage>>? _scheduledMessagesSubscription;
+  StreamSubscription<List<ScheduledMessage>>? _receivedMessagesSubscription;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
-    
-    // Set up periodic refresh to catch status updates
-    Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (mounted) {
-        _refreshData();
-      } else {
-        timer.cancel();
-      }
-    });
+    _setupStreams();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scheduledMessagesSubscription?.cancel();
+    _receivedMessagesSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when page becomes visible
+    _refreshData();
+  }
+
+  void _setupStreams() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // Set up real-time streams for message updates
+    _scheduledMessagesSubscription = _messageService
+        .streamScheduledMessages(currentUser.uid)
+        .listen((messages) {
+          if (mounted) {
+            setState(() {
+              _scheduledMessages = messages;
+            });
+          }
+        });
+
+    _receivedMessagesSubscription = _messageService
+        .streamReceivedMessages(currentUser.uid)
+        .listen((messages) {
+          if (mounted) {
+            setState(() {
+              _receivedMessages = messages;
+            });
+          }
+        });
+
+    // Set up periodic check for ready messages
+    Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _messageService.checkReadyMessages();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -63,17 +151,11 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
         throw Exception('User not logged in');
       }
 
-      // Load data in parallel
-      final results = await Future.wait([
-        _messageService.getScheduledMessages(currentUser.uid),
-        _messageService.getReceivedMessages(currentUser.uid),
-        _friendService.getFriends(),
-      ]);
+      // Load friends data
+      final friends = await _friendService.getFriends();
 
       setState(() {
-        _scheduledMessages = results[0] as List<ScheduledMessage>;
-        _receivedMessages = results[1] as List<ScheduledMessage>;
-        _friends = results[2] as List<UserProfile>;
+        _friends = friends;
         _isLoading = false;
       });
     } catch (e) {
@@ -90,19 +172,15 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
     if (currentUser == null) return;
 
     try {
-      // Refresh both scheduled and received messages
-      final results = await Future.wait([
-        _messageService.getScheduledMessages(currentUser.uid),
-        _messageService.getReceivedMessages(currentUser.uid),
-      ]);
+      // Refresh friends data
+      final friends = await _friendService.getFriends();
 
       setState(() {
-        _scheduledMessages = results[0];
-        _receivedMessages = results[1];
+        _friends = friends;
       });
     } catch (e) {
       // Silently handle refresh errors to avoid disrupting user experience
-      debugPrint('Error refreshing message data: $e');
+      debugPrint('Error refreshing data: $e');
     }
   }
 
@@ -116,7 +194,54 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
     );
   }
 
+  Future<void> _showDebugInfo() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
+    try {
+      final result = await _messageService.triggerMessageDelivery();
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Debug Info'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Cloud Function Result:'),
+                  const SizedBox(height: 8),
+                  Text(result.toString()),
+                  const SizedBox(height: 16),
+                  Text('Scheduled Messages: ${_scheduledMessages.length}'),
+                  Text('Received Messages: ${_receivedMessages.length}'),
+                  const SizedBox(height: 16),
+                  Text('Current Time: ${DateTime.now()}'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Debug error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +252,52 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
         title: const Text('Scheduled Messages'),
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              // Show loading indicator
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 16),
+                      Text('Checking for ready messages...'),
+                    ],
+                  ),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              
+              // Trigger cloud function and local checks
+              await _messageService.triggerCloudFunctionDelivery();
+              await _messageService.checkReadyMessages();
+              await _refreshData();
+              
+              // Hide loading and show success
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Messages refreshed'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Refresh Messages',
+          ),
+          // Debug button (only in debug mode)
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: _showDebugInfo,
+              tooltip: 'Debug Info',
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -358,7 +529,7 @@ class _CreateScheduledMessageDialogState
   DateTime? _selectedDateTime;
   bool _isCreating = false;
   String? _errorMessage;
-  
+
   // Media attachment state
   List<File> _selectedImages = [];
   File? _selectedVideo;
@@ -384,9 +555,9 @@ class _CreateScheduledMessageDialogState
   }
 
   bool _hasContent() {
-    return _textController.text.trim().isNotEmpty || 
-           _selectedImages.isNotEmpty || 
-           _selectedVideo != null;
+    return _textController.text.trim().isNotEmpty ||
+        _selectedImages.isNotEmpty ||
+        _selectedVideo != null;
   }
 
   Future<void> _selectDateTime() async {
@@ -438,7 +609,8 @@ class _CreateScheduledMessageDialogState
     try {
       setState(() {
         _isCreating = true;
-        _isUploadingMedia = _selectedImages.isNotEmpty || _selectedVideo != null;
+        _isUploadingMedia =
+            _selectedImages.isNotEmpty || _selectedVideo != null;
         _uploadProgress = 0.0;
         _errorMessage = null;
       });
@@ -467,7 +639,7 @@ class _CreateScheduledMessageDialogState
       if (_selectedImages.isNotEmpty || _selectedVideo != null) {
         // Simulate upload progress for better UX
         _simulateUploadProgress();
-        
+
         await _messageService.createScheduledMessageWithMedia(
           message,
           _selectedImages.isNotEmpty ? _selectedImages : null,
@@ -508,7 +680,7 @@ class _CreateScheduledMessageDialogState
         timer.cancel();
         return;
       }
-      
+
       setState(() {
         _uploadProgress += 0.05;
         if (_uploadProgress >= 1.0) {
@@ -534,254 +706,256 @@ class _CreateScheduledMessageDialogState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(
-                'Create Scheduled Message',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                Text(
+                  'Create Scheduled Message',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Recipient Selection
-              Text(
-                'Send to:',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
+                // Recipient Selection
+                Text(
+                  'Send to:',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<UserProfile?>(
-                value: _selectedRecipient,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Select recipient',
+                const SizedBox(height: 8),
+                DropdownButtonFormField<UserProfile?>(
+                  value: _selectedRecipient,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Select recipient',
+                  ),
+                  items: [
+                    DropdownMenuItem<UserProfile?>(
+                      value: null,
+                      child: Row(
+                        children: [
+                          Icon(Icons.person, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          const Text('Myself'),
+                        ],
+                      ),
+                    ),
+                    ...widget.friends.map(
+                      (friend) => DropdownMenuItem<UserProfile?>(
+                        value: friend,
+                        child: Row(
+                          children: [
+                            ProfilePictureWidget(userProfile: friend, size: 24),
+                            const SizedBox(width: 8),
+                            Text(friend.username),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRecipient = value;
+                    });
+                  },
                 ),
-                items: [
-                  DropdownMenuItem<UserProfile?>(
-                    value: null,
+                const SizedBox(height: 16),
+
+                // Message Content
+                Text(
+                  'Message:',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _textController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Write your message...',
+                  ),
+                  maxLines: 4,
+                  maxLength: 5000,
+                  validator: (value) {
+                    // Text is optional if media is attached
+                    if ((value == null || value.trim().isEmpty) &&
+                        _selectedImages.isEmpty &&
+                        _selectedVideo == null) {
+                      return 'Please enter a message or add media';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    // Clear error when user starts typing
+                    if (_errorMessage != null) {
+                      setState(() {
+                        _errorMessage = null;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Media Attachments
+                Text(
+                  'Media Attachments:',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                MediaAttachmentWidget(
+                  selectedImages: _selectedImages,
+                  selectedVideo: _selectedVideo,
+                  onImagesChanged: _onImagesChanged,
+                  onVideoChanged: _onVideoChanged,
+                  maxImages: 5,
+                  maxImageSizeMB: 10,
+                  maxVideoSizeMB: 50,
+                ),
+                const SizedBox(height: 16),
+
+                // Delivery Date/Time
+                Text(
+                  'Delivery Date & Time:',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _selectDateTime,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.colorScheme.outline),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.person, color: theme.colorScheme.primary),
+                        Icon(Icons.schedule, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        const Text('Myself'),
+                        Text(
+                          _selectedDateTime != null
+                              ? _formatDateTime(_selectedDateTime!)
+                              : 'Select date and time',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: _selectedDateTime != null
+                                ? theme.colorScheme.onSurface
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  ...widget.friends.map(
-                    (friend) => DropdownMenuItem<UserProfile?>(
-                      value: friend,
-                      child: Row(
-                        children: [
-                          ProfilePictureWidget(userProfile: friend, size: 24),
-                          const SizedBox(width: 8),
-                          Text(friend.username),
-                        ],
-                      ),
+                ),
+
+                // Upload progress indicator
+                if (_isUploadingMedia) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.cloud_upload,
+                              color: theme.colorScheme.onPrimaryContainer,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Uploading media...',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: _uploadProgress,
+                          backgroundColor: theme.colorScheme.onPrimaryContainer
+                              .withOpacity(0.3),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${(_uploadProgress * 100).toInt()}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRecipient = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
 
-              // Message Content
-              Text(
-                'Message:',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _textController,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Write your message...',
-                ),
-                maxLines: 4,
-                maxLength: 5000,
-                validator: (value) {
-                  // Text is optional if media is attached
-                  if ((value == null || value.trim().isEmpty) && 
-                      _selectedImages.isEmpty && _selectedVideo == null) {
-                    return 'Please enter a message or add media';
-                  }
-                  return null;
-                },
-                onChanged: (value) {
-                  // Clear error when user starts typing
-                  if (_errorMessage != null) {
-                    setState(() {
-                      _errorMessage = null;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Media Attachments
-              Text(
-                'Media Attachments:',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              MediaAttachmentWidget(
-                selectedImages: _selectedImages,
-                selectedVideo: _selectedVideo,
-                onImagesChanged: _onImagesChanged,
-                onVideoChanged: _onVideoChanged,
-                maxImages: 5,
-                maxImageSizeMB: 10,
-                maxVideoSizeMB: 50,
-              ),
-              const SizedBox(height: 16),
-
-              // Delivery Date/Time
-              Text(
-                'Delivery Date & Time:',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: _selectDateTime,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: theme.colorScheme.outline),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.schedule, color: theme.colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        _selectedDateTime != null
-                            ? _formatDateTime(_selectedDateTime!)
-                            : 'Select date and time',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: _selectedDateTime != null
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.onSurfaceVariant,
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: theme.colorScheme.error,
+                          size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Upload progress indicator
-              if (_isUploadingMedia) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.cloud_upload,
-                            color: theme.colorScheme.onPrimaryContainer,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Uploading media...',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w500,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: _uploadProgress,
-                        backgroundColor: theme.colorScheme.onPrimaryContainer.withOpacity(0.3),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          theme.colorScheme.onPrimaryContainer,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(_uploadProgress * 100).toInt()}%',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: theme.colorScheme.error,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isCreating
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isCreating ? null : _createMessage,
-                    child: _isCreating
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Schedule'),
+                      ],
+                    ),
                   ),
                 ],
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _isCreating
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _isCreating ? null : _createMessage,
+                      child: _isCreating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Schedule'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -847,19 +1021,25 @@ class ScheduledMessageCard extends StatelessWidget {
                           color: theme.colorScheme.primary,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'To: Myself',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            'To: Myself',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ] else ...[
                         ProfilePictureWidget(userProfile: recipient!, size: 24),
                         const SizedBox(width: 8),
-                        Text(
-                          'To: ${recipient.username}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            'To: ${recipient.username}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -890,64 +1070,66 @@ class ScheduledMessageCard extends StatelessWidget {
             // Media attachments display
             if (message.hasMedia()) ...[
               const SizedBox(height: 12),
-              _buildMediaSection(theme),
+              _buildMediaSection(context, theme),
             ],
 
             const SizedBox(height: 12),
 
-            // Delivery info and actions
-            Row(
+            // Delivery info and actions - Fixed layout to prevent overflow
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _getDeliveryIcon(),
-                            size: 16,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _getDeliveryText(),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      if (message.isPending()) ...[
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.timer,
-                              size: 16,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _getTimeUntilDelivery(),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                Row(
+                  children: [
+                    Icon(
+                      _getDeliveryIcon(),
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _getDeliveryText(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                      ],
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (message.isPending()) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.timer,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _getTimeUntilDelivery(),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                if (message.isPending()) ...[
-                  TextButton.icon(
-                    onPressed: onCancel,
-                    icon: const Icon(Icons.cancel, size: 18),
-                    label: const Text('Cancel'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: onCancel,
+                      icon: const Icon(Icons.cancel, size: 18),
+                      label: const Text('Cancel'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
                     ),
                   ),
                 ],
@@ -959,7 +1141,58 @@ class ScheduledMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaSection(ThemeData theme) {
+  Widget _buildStatusChip(ThemeData theme) {
+    Color backgroundColor;
+    Color textColor;
+    IconData icon;
+    String text;
+
+    switch (message.status) {
+      case ScheduledMessageStatus.pending:
+        backgroundColor = theme.colorScheme.primaryContainer;
+        textColor = theme.colorScheme.onPrimaryContainer;
+        icon = Icons.schedule;
+        text = 'Pending';
+        break;
+      case ScheduledMessageStatus.delivered:
+        backgroundColor = theme.colorScheme.tertiaryContainer;
+        textColor = theme.colorScheme.onTertiaryContainer;
+        icon = Icons.check_circle;
+        text = 'Delivered';
+        break;
+      case ScheduledMessageStatus.failed:
+        backgroundColor = theme.colorScheme.errorContainer;
+        textColor = theme.colorScheme.onErrorContainer;
+        icon = Icons.error;
+        text = 'Failed';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaSection(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -978,8 +1211,10 @@ class ScheduledMessageCard extends StatelessWidget {
             children: [
               // Display image thumbnails
               if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
-                ...message.imageUrls!.map((imageUrl) => _buildImageThumbnail(imageUrl, theme)),
-              
+                ...message.imageUrls!.map(
+                  (imageUrl) => _buildImageThumbnail(context, imageUrl, theme),
+                ),
+
               // Display video preview
               if (message.videoUrl != null)
                 _buildVideoThumbnail(message.videoUrl!, theme),
@@ -990,45 +1225,61 @@ class ScheduledMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageThumbnail(String imageUrl, ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Icon(
-                Icons.broken_image,
-                color: theme.colorScheme.onSurfaceVariant,
-                size: 32,
-              ),
-            );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
+  Widget _buildImageThumbnail(
+    BuildContext context,
+    String imageUrl,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(context, imageUrl),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 32,
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
       ),
     );
   }
@@ -1067,84 +1318,35 @@ class ScheduledMessageCard extends StatelessWidget {
       case ScheduledMessageStatus.pending:
         return 'Delivers: ${_formatDateTime(message.scheduledFor)}';
       case ScheduledMessageStatus.delivered:
-        return message.deliveredAt != null 
-            ? 'Delivered: ${_formatDateTime(message.deliveredAt!)}'
-            : 'Delivered: ${_formatDateTime(message.scheduledFor)}';
+        return 'Delivered: ${_formatDateTime(message.deliveredAt ?? message.scheduledFor)}';
       case ScheduledMessageStatus.failed:
-        return 'Failed to deliver: ${_formatDateTime(message.scheduledFor)}';
+        return 'Failed to deliver';
     }
   }
 
-  Widget _buildStatusChip(ThemeData theme) {
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String text;
+  String _getTimeUntilDelivery() {
+    if (!message.isPending()) return '';
 
-    switch (message.status) {
-      case ScheduledMessageStatus.pending:
-        backgroundColor = theme.colorScheme.primaryContainer;
-        textColor = theme.colorScheme.onPrimaryContainer;
-        icon = Icons.schedule;
-        text = 'Pending';
-        break;
-      case ScheduledMessageStatus.delivered:
-        backgroundColor = theme.colorScheme.secondaryContainer;
-        textColor = theme.colorScheme.onSecondaryContainer;
-        icon = Icons.check_circle;
-        text = 'Delivered';
-        break;
-      case ScheduledMessageStatus.failed:
-        backgroundColor = theme.colorScheme.errorContainer;
-        textColor = theme.colorScheme.onErrorContainer;
-        icon = Icons.error;
-        text = 'Failed';
-        break;
+    final now = DateTime.now();
+    final difference = message.scheduledFor.difference(now);
+
+    if (difference.isNegative) {
+      return 'Ready for delivery';
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
+    if (difference.inDays > 0) {
+      return '${difference.inDays} days';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes';
+    } else {
+      return 'Less than a minute';
+    }
   }
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _getTimeUntilDelivery() {
-    final timeUntil = message.getTimeUntilDelivery();
-    if (timeUntil == null) return 'Ready for delivery';
-
-    final days = timeUntil.inDays;
-    final hours = timeUntil.inHours % 24;
-    final minutes = timeUntil.inMinutes % 60;
-
-    if (days > 0) {
-      return '$days day${days == 1 ? '' : 's'}, $hours hour${hours == 1 ? '' : 's'}';
-    } else if (hours > 0) {
-      return '$hours hour${hours == 1 ? '' : 's'}, $minutes minute${minutes == 1 ? '' : 's'}';
-    } else {
-      return '$minutes minute${minutes == 1 ? '' : 's'}';
-    }
   }
 }
 
@@ -1181,103 +1383,101 @@ class ReceivedMessageCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showFullMessage(context),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with sender info and status
-              Row(
-                children: [
-                  if (isFromSelf) ...[
-                    Icon(
-                      Icons.person,
-                      size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'From: Myself',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ] else ...[
-                    ProfilePictureWidget(userProfile: sender!, size: 24),
-                    const SizedBox(width: 8),
-                    Text(
-                      'From: ${sender.username}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  _buildStatusChip(theme),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Message content preview
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  message.textContent.length > 150
-                      ? '${message.textContent.substring(0, 150)}...'
-                      : message.textContent,
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ),
-
-              // Media attachments display
-              if (message.hasMedia()) ...[
-                const SizedBox(height: 12),
-                _buildMediaSection(theme),
-              ],
-
-              const SizedBox(height: 12),
-
-              // Delivery info and action
-              Row(
-                children: [
-                  Icon(
-                    _getDeliveryIcon(),
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with sender info
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (isFromSelf) ...[
+                        Icon(
+                          Icons.person,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'From: Myself',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ] else ...[
+                        ProfilePictureWidget(userProfile: sender!, size: 24),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'From: ${sender.username}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _getDeliveryText(),
+                ),
+                _buildStatusChip(theme),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Message content
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                message.textContent,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+
+            // Media attachments display
+            if (message.hasMedia()) ...[
+              const SizedBox(height: 12),
+              _buildMediaSection(context, theme),
+            ],
+
+            const SizedBox(height: 12),
+
+            // Delivery info
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Ready: ${_formatDateTime(message.scheduledFor)}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const Spacer(),
-                  Text(
-                    'Tap to read',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 12,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                TextButton(
+                  onPressed: () => _showMessageDetails(context),
+                  child: const Text('Tap to read'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -1289,25 +1489,16 @@ class ReceivedMessageCard extends StatelessWidget {
     IconData icon;
     String text;
 
-    switch (message.status) {
-      case ScheduledMessageStatus.pending:
-        backgroundColor = theme.colorScheme.primaryContainer;
-        textColor = theme.colorScheme.onPrimaryContainer;
-        icon = Icons.schedule;
-        text = 'Pending';
-        break;
-      case ScheduledMessageStatus.delivered:
-        backgroundColor = theme.colorScheme.secondaryContainer;
-        textColor = theme.colorScheme.onSecondaryContainer;
-        icon = Icons.check_circle;
-        text = 'Delivered';
-        break;
-      case ScheduledMessageStatus.failed:
-        backgroundColor = theme.colorScheme.errorContainer;
-        textColor = theme.colorScheme.onErrorContainer;
-        icon = Icons.error;
-        text = 'Failed';
-        break;
+    if (message.isDelivered()) {
+      backgroundColor = theme.colorScheme.tertiaryContainer;
+      textColor = theme.colorScheme.onTertiaryContainer;
+      icon = Icons.check_circle;
+      text = 'Delivered';
+    } else {
+      backgroundColor = theme.colorScheme.primaryContainer;
+      textColor = theme.colorScheme.onPrimaryContainer;
+      icon = Icons.schedule;
+      text = 'Pending';
     }
 
     return Container(
@@ -1334,7 +1525,7 @@ class ReceivedMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMediaSection(ThemeData theme) {
+  Widget _buildMediaSection(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1353,8 +1544,10 @@ class ReceivedMessageCard extends StatelessWidget {
             children: [
               // Display image thumbnails
               if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
-                ...message.imageUrls!.map((imageUrl) => _buildImageThumbnail(imageUrl, theme)),
-              
+                ...message.imageUrls!.map(
+                  (imageUrl) => _buildImageThumbnail(context, imageUrl, theme),
+                ),
+
               // Display video preview
               if (message.videoUrl != null)
                 _buildVideoThumbnail(message.videoUrl!, theme),
@@ -1365,45 +1558,61 @@ class ReceivedMessageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageThumbnail(String imageUrl, ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Icon(
-                Icons.broken_image,
-                color: theme.colorScheme.onSurfaceVariant,
-                size: 32,
-              ),
-            );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
+  Widget _buildImageThumbnail(
+    BuildContext context,
+    String imageUrl,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(context, imageUrl),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 32,
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
       ),
     );
   }
@@ -1426,31 +1635,7 @@ class ReceivedMessageCard extends StatelessWidget {
     );
   }
 
-  IconData _getDeliveryIcon() {
-    switch (message.status) {
-      case ScheduledMessageStatus.pending:
-        return Icons.schedule;
-      case ScheduledMessageStatus.delivered:
-        return Icons.check_circle;
-      case ScheduledMessageStatus.failed:
-        return Icons.error;
-    }
-  }
-
-  String _getDeliveryText() {
-    switch (message.status) {
-      case ScheduledMessageStatus.pending:
-        return 'Ready: ${_formatDateTime(message.scheduledFor)}';
-      case ScheduledMessageStatus.delivered:
-        return message.deliveredAt != null 
-            ? 'Delivered: ${_formatDateTime(message.deliveredAt!)}'
-            : 'Delivered: ${_formatDateTime(message.scheduledFor)}';
-      case ScheduledMessageStatus.failed:
-        return 'Failed: ${_formatDateTime(message.scheduledFor)}';
-    }
-  }
-
-  void _showFullMessage(BuildContext context) {
+  void _showMessageDetails(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) =>
@@ -1496,77 +1681,53 @@ class MessageViewDialog extends StatelessWidget {
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-              ),
-              child: Row(
-                children: [
-                  if (isFromSelf) ...[
-                    Icon(
-                      Icons.person,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
+            Row(
+              children: [
+                if (isFromSelf) ...[
+                  Icon(
+                    Icons.person,
+                    size: 24,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
                       'Message from Myself',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.bold,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ] else ...[
-                    ProfilePictureWidget(userProfile: sender!, size: 32),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Message from',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer
-                                .withValues(alpha: 0.8),
-                          ),
-                        ),
-                        Text(
-                          sender.username,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(
-                      Icons.close,
-                      color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ] else ...[
+                  ProfilePictureWidget(userProfile: sender!, size: 32),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Message from ${sender.username}',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
+            const SizedBox(height: 24),
 
-            // Content
-            Flexible(
+            // Message content
+            Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Message content
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -1576,63 +1737,47 @@ class MessageViewDialog extends StatelessWidget {
                       ),
                       child: Text(
                         message.textContent,
-                        style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                        style: theme.textTheme.bodyLarge,
                       ),
                     ),
 
                     // Media attachments
                     if (message.hasMedia()) ...[
                       const SizedBox(height: 16),
-                      _buildFullMediaSection(theme),
+                      Text(
+                        'Attachments',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMediaSection(context, theme),
                     ],
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // Metadata
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Message Details',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildDetailRow(
-                            context,
-                            Icons.schedule,
-                            'Scheduled for',
-                            _formatDateTime(message.scheduledFor),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            context,
-                            Icons.check_circle,
-                            'Delivered at',
-                            _formatDateTime(
-                              message.deliveredAt ?? message.scheduledFor,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            context,
-                            Icons.create,
-                            'Created on',
-                            _formatDateTime(message.createdAt),
-                          ),
-                        ],
+                    // Message details
+                    Text(
+                      'Message Details',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    _buildMessageDetails(theme),
                   ],
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Close button
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
               ),
             ),
           ],
@@ -1641,160 +1786,139 @@ class MessageViewDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildFullMediaSection(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildMediaSection(BuildContext context, ThemeData theme) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Text(
-          'Attachments',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
+        // Display image thumbnails
+        if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
+          ...message.imageUrls!.map(
+            (imageUrl) => _buildImageThumbnail(context, imageUrl, theme),
           ),
+
+        // Display video preview
+        if (message.videoUrl != null)
+          _buildVideoThumbnail(message.videoUrl!, theme),
+      ],
+    );
+  }
+
+  Widget _buildImageThumbnail(
+    BuildContext context,
+    String imageUrl,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(context, imageUrl),
+      child: Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
-        const SizedBox(height: 12),
-        
-        // Display images in a grid
-        if (message.imageUrls != null && message.imageUrls!.isNotEmpty) ...[
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 1,
-            ),
-            itemCount: message.imageUrls!.length,
-            itemBuilder: (context, index) {
-              return _buildFullImageThumbnail(message.imageUrls![index], theme);
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.broken_image,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 48,
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              );
             },
           ),
-          if (message.videoUrl != null) const SizedBox(height: 16),
-        ],
-        
-        // Display video
-        if (message.videoUrl != null)
-          _buildFullVideoThumbnail(message.videoUrl!, theme),
-      ],
+        ),
+      ),
     );
   }
 
-  Widget _buildFullImageThumbnail(String imageUrl, ThemeData theme) {
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
+      ),
+    );
+  }
+
+  Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
     return Container(
+      width: 120,
+      height: 120,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        color: theme.colorScheme.surfaceContainerHighest,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.broken_image,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Image unavailable',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
-        ),
+      child: Icon(
+        Icons.videocam,
+        color: theme.colorScheme.onSurfaceVariant,
+        size: 48,
       ),
     );
   }
 
-  Widget _buildFullVideoThumbnail(String videoUrl, ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.3),
+  Widget _buildMessageDetails(ThemeData theme) {
+    return Column(
+      children: [
+        _buildDetailRow(
+          theme,
+          Icons.schedule,
+          'Scheduled for: ${_formatDateTime(message.scheduledFor)}',
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        if (message.deliveredAt != null)
+          _buildDetailRow(
+            theme,
+            Icons.check_circle,
+            'Delivered at: ${_formatDateTime(message.deliveredAt!)}',
+          ),
+        _buildDetailRow(
+          theme,
+          Icons.edit,
+          'Created on: ${_formatDateTime(message.createdAt)}',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(ThemeData theme, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
         children: [
-          Icon(
-            Icons.play_circle_outline,
-            size: 64,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Video Message',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap to play',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDetailRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 

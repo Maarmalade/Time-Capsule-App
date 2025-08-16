@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'profile_picture_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,6 +12,8 @@ class AuthService {
 
   /// Sign out the current user
   Future<void> signOut() async {
+    // Clear profile picture cache before signing out
+    ProfilePictureService.clearAllCache();
     await _auth.signOut();
   }
 

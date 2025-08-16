@@ -3,9 +3,9 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mockito/mockito.dart';
-import '../../lib/services/scheduled_message_service.dart';
-import '../../lib/services/storage_service.dart';
-import '../../lib/models/scheduled_message_model.dart';
+import 'package:time_capsule/services/scheduled_message_service.dart';
+import 'package:time_capsule/services/storage_service.dart';
+import 'package:time_capsule/models/scheduled_message_model.dart';
 
 class MockStorageService extends Mock implements StorageService {}
 

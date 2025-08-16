@@ -50,24 +50,32 @@ exports.processScheduledMessages = onSchedule({
     
     logger.info(`Found ${readyMessages.docs.length} messages ready for delivery`);
     
-    // Process each message
+    // Process each message with enhanced error handling
     const deliveryPromises = readyMessages.docs.map(async (doc) => {
       const messageData = doc.data();
       const messageId = doc.id;
       
       try {
+        // Validate message data before processing
+        if (!messageData.senderId || !messageData.recipientId || !messageData.textContent) {
+          throw new Error('Invalid message data: missing required fields');
+        }
+        
+        // Check if message is still valid for delivery
+        const scheduledFor = messageData.scheduledFor;
+        const now = admin.firestore.Timestamp.now();
+        
+        if (scheduledFor > now.toMillis() + (5 * 60 * 1000)) { // 5 minute buffer
+          logger.warn(`Message ${messageId} scheduled time is too far in future, skipping`);
+          return;
+        }
+        
         await deliverMessage(messageId, messageData);
         logger.info(`Successfully delivered message ${messageId}`);
+        
       } catch (error) {
         logger.error(`Failed to deliver message ${messageId}:`, error);
-        
-        // Update message status to failed with atomic operation
-        await doc.ref.update({
-          status: 'failed',
-          failureReason: error.message,
-          failedAt: admin.firestore.Timestamp.now(),
-          updatedAt: admin.firestore.Timestamp.now(),
-        });
+        // Error handling is now done within deliverMessage function
       }
     });
     
@@ -90,20 +98,74 @@ async function deliverMessage(messageId, messageData) {
   const deliveredAt = admin.firestore.Timestamp.now();
   
   try {
-    // Update message status to delivered with atomic operation
-    await db.collection('scheduledMessages').doc(messageId).update({
-      status: 'delivered',
-      deliveredAt: deliveredAt,
-      updatedAt: deliveredAt, // Ensure updatedAt is also set
+    // Use atomic transaction to ensure status update is consistent
+    await db.runTransaction(async (transaction) => {
+      const messageRef = db.collection('scheduledMessages').doc(messageId);
+      const messageDoc = await transaction.get(messageRef);
+      
+      if (!messageDoc.exists) {
+        throw new Error(`Message ${messageId} not found`);
+      }
+      
+      const currentData = messageDoc.data();
+      
+      // Verify message is still pending before updating
+      if (currentData.status !== 'pending') {
+        logger.warn(`Message ${messageId} is no longer pending (status: ${currentData.status}), skipping delivery`);
+        return;
+      }
+      
+      // Atomic update with proper deliveredAt timestamp
+      transaction.update(messageRef, {
+        status: 'delivered',
+        deliveredAt: deliveredAt,
+        updatedAt: deliveredAt,
+        // Add processing metadata for debugging
+        processedBy: 'cloud-function',
+        processedAt: deliveredAt,
+      });
+      
+      logger.info(`Message ${messageId} status updated to delivered with timestamp ${deliveredAt.toDate().toISOString()}`);
     });
     
-    // Send push notification to recipient
-    await sendDeliveryNotification(messageData);
+    // Send push notification to recipient (outside transaction to avoid timeout)
+    try {
+      await sendDeliveryNotification(messageData, messageId);
+    } catch (notificationError) {
+      logger.error(`Failed to send notification for message ${messageId}:`, notificationError);
+      // Don't fail the entire delivery if notification fails
+    }
     
     logger.info(`Message ${messageId} delivered successfully at ${deliveredAt.toDate().toISOString()}`);
     
   } catch (error) {
     logger.error(`Error delivering message ${messageId}:`, error);
+    
+    // Try to update message status to failed with proper error handling
+    try {
+      await db.runTransaction(async (transaction) => {
+        const messageRef = db.collection('scheduledMessages').doc(messageId);
+        const messageDoc = await transaction.get(messageRef);
+        
+        if (messageDoc.exists) {
+          const currentData = messageDoc.data();
+          
+          // Only update to failed if still pending
+          if (currentData.status === 'pending') {
+            transaction.update(messageRef, {
+              status: 'failed',
+              failureReason: error.message || 'Unknown delivery error',
+              failedAt: admin.firestore.Timestamp.now(),
+              updatedAt: admin.firestore.Timestamp.now(),
+              retryCount: (currentData.retryCount || 0) + 1,
+            });
+          }
+        }
+      });
+    } catch (updateError) {
+      logger.error(`Failed to update message ${messageId} to failed status:`, updateError);
+    }
+    
     throw error;
   }
 }
@@ -111,8 +173,9 @@ async function deliverMessage(messageId, messageData) {
 /**
  * Sends a push notification when a scheduled message is delivered
  * @param {Object} messageData - The message data
+ * @param {string} messageId - The message ID for tracking
  */
-async function sendDeliveryNotification(messageData) {
+async function sendDeliveryNotification(messageData, messageId) {
   try {
     const db = admin.firestore();
     
@@ -155,9 +218,11 @@ async function sendDeliveryNotification(messageData) {
       },
       data: {
         type: 'scheduled_message_delivered',
-        messageId: messageData.id || '',
+        messageId: messageId || messageData.id || '',
         senderId: messageData.senderId,
         hasVideo: messageData.videoUrl ? 'true' : 'false',
+        hasImages: (messageData.imageUrls && messageData.imageUrls.length > 0) ? 'true' : 'false',
+        deliveredAt: new Date().toISOString(),
       },
       android: {
         notification: {
@@ -473,26 +538,25 @@ exports.triggerMessageDelivery = onCall({
     let processedCount = 0;
     let failedCount = 0;
     
-    // Process each message
+    // Process each message with enhanced validation
     for (const doc of readyMessages.docs) {
       const messageData = doc.data();
       const messageId = doc.id;
       
       try {
+        // Validate message data before processing
+        if (!messageData.senderId || !messageData.recipientId || !messageData.textContent) {
+          throw new Error('Invalid message data: missing required fields');
+        }
+        
         await deliverMessage(messageId, messageData);
         processedCount++;
         logger.info(`Successfully delivered message ${messageId}`);
+        
       } catch (error) {
         failedCount++;
         logger.error(`Failed to deliver message ${messageId}:`, error);
-        
-        // Update message status to failed
-        await doc.ref.update({
-          status: 'failed',
-          failureReason: error.message,
-          failedAt: admin.firestore.Timestamp.now(),
-          updatedAt: admin.firestore.Timestamp.now(),
-        });
+        // Error handling is now done within deliverMessage function
       }
     }
     
@@ -505,6 +569,98 @@ exports.triggerMessageDelivery = onCall({
     
   } catch (error) {
     logger.error("Error in manual trigger function:", error);
+    throw error;
+  }
+});
+
+/**
+ * Test function to validate Cloud Function message processing
+ * This function helps test the delivery mechanism and status updates
+ */
+exports.testMessageDelivery = onCall({
+  memory: "256MiB",
+}, async (request) => {
+  // Verify user is authenticated
+  if (!request.auth) {
+    throw new Error("Authentication required");
+  }
+  
+  const { messageId, forceDelivery } = request.data;
+  
+  if (!messageId) {
+    throw new Error("Message ID is required for testing");
+  }
+  
+  try {
+    const db = admin.firestore();
+    const messageDoc = await db.collection('scheduledMessages').doc(messageId).get();
+    
+    if (!messageDoc.exists) {
+      throw new Error("Message not found");
+    }
+    
+    const messageData = messageDoc.data();
+    const userId = request.auth.uid;
+    
+    // Verify user has permission to test this message (sender or recipient)
+    if (messageData.senderId !== userId && messageData.recipientId !== userId) {
+      throw new Error("Permission denied: You can only test your own messages");
+    }
+    
+    // Validate message status
+    if (messageData.status !== 'pending' && !forceDelivery) {
+      return {
+        success: false,
+        message: `Message is already ${messageData.status}. Use forceDelivery=true to override.`,
+        currentStatus: messageData.status,
+        deliveredAt: messageData.deliveredAt ? messageData.deliveredAt.toDate().toISOString() : null,
+      };
+    }
+    
+    // Test the delivery process
+    const testStartTime = admin.firestore.Timestamp.now();
+    
+    try {
+      // If forcing delivery, temporarily reset status to pending
+      if (forceDelivery && messageData.status !== 'pending') {
+        await db.collection('scheduledMessages').doc(messageId).update({
+          status: 'pending',
+          testMode: true,
+          testStartedAt: testStartTime,
+        });
+      }
+      
+      // Perform the delivery
+      await deliverMessage(messageId, messageData);
+      
+      // Verify the delivery was successful
+      const updatedDoc = await db.collection('scheduledMessages').doc(messageId).get();
+      const updatedData = updatedDoc.data();
+      
+      return {
+        success: true,
+        message: "Message delivery test completed successfully",
+        originalStatus: messageData.status,
+        newStatus: updatedData.status,
+        deliveredAt: updatedData.deliveredAt ? updatedData.deliveredAt.toDate().toISOString() : null,
+        processingTime: admin.firestore.Timestamp.now().toMillis() - testStartTime.toMillis(),
+        testMode: forceDelivery || false,
+      };
+      
+    } catch (deliveryError) {
+      logger.error(`Test delivery failed for message ${messageId}:`, deliveryError);
+      
+      return {
+        success: false,
+        message: `Delivery test failed: ${deliveryError.message}`,
+        originalStatus: messageData.status,
+        error: deliveryError.message,
+        processingTime: admin.firestore.Timestamp.now().toMillis() - testStartTime.toMillis(),
+      };
+    }
+    
+  } catch (error) {
+    logger.error(`Error in test message delivery for ${messageId}:`, error);
     throw error;
   }
 });

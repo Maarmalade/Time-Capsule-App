@@ -5,11 +5,14 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i3;
 
-import 'package:cloud_firestore/cloud_firestore.dart' as _i7;
+import 'package:cloud_firestore/cloud_firestore.dart' as _i8;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
 import 'package:time_capsule/models/folder_model.dart' as _i4;
 import 'package:time_capsule/models/shared_folder_data.dart' as _i6;
+import 'package:time_capsule/models/shared_folder_notification_model.dart'
+    as _i9;
+import 'package:time_capsule/models/user_profile.dart' as _i7;
 import 'package:time_capsule/services/folder_service.dart' as _i2;
 
 // ignore_for_file: type=lint
@@ -125,12 +128,42 @@ class MockFolderService extends _i1.Mock implements _i2.FolderService {
           as _i3.Future<String>);
 
   @override
+  _i3.Future<void> convertToSharedFolder(
+    String? folderId,
+    List<String>? contributorIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#convertToSharedFolder, [
+              folderId,
+              contributorIds,
+            ]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> inviteContributors(
     String? folderId,
     List<String>? userIds,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#inviteContributors, [folderId, userIds]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> notifyContributorAdded(
+    String? folderId,
+    String? contributorId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyContributorAdded, [
+              folderId,
+              contributorId,
+            ]),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
@@ -188,6 +221,16 @@ class MockFolderService extends _i1.Mock implements _i2.FolderService {
           as _i3.Future<bool>);
 
   @override
+  _i3.Future<List<_i7.UserProfile>> getFolderContributors(String? folderId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getFolderContributors, [folderId]),
+            returnValue: _i3.Future<List<_i7.UserProfile>>.value(
+              <_i7.UserProfile>[],
+            ),
+          )
+          as _i3.Future<List<_i7.UserProfile>>);
+
+  @override
   _i3.Stream<List<_i4.FolderModel>> streamAccessibleFolders({
     required String? userId,
     String? parentFolderId,
@@ -201,6 +244,21 @@ class MockFolderService extends _i1.Mock implements _i2.FolderService {
               #includeShared: includeShared,
               #includePublic: includePublic,
             }),
+            returnValue: _i3.Stream<List<_i4.FolderModel>>.empty(),
+          )
+          as _i3.Stream<List<_i4.FolderModel>>);
+
+  @override
+  _i3.Stream<List<_i4.FolderModel>> streamUserAccessibleFolders(
+    String? userId, {
+    String? parentFolderId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #streamUserAccessibleFolders,
+              [userId],
+              {#parentFolderId: parentFolderId},
+            ),
             returnValue: _i3.Stream<List<_i4.FolderModel>>.empty(),
           )
           as _i3.Stream<List<_i4.FolderModel>>);
@@ -226,7 +284,7 @@ class MockFolderService extends _i1.Mock implements _i2.FolderService {
   @override
   _i3.Future<List<_i4.FolderModel>> getPublicFolders({
     int? limit = 20,
-    _i7.DocumentSnapshot<Object?>? startAfter,
+    _i8.DocumentSnapshot<Object?>? startAfter,
     String? searchQuery,
   }) =>
       (super.noSuchMethod(
@@ -262,4 +320,51 @@ class MockFolderService extends _i1.Mock implements _i2.FolderService {
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<_i9.SharedFolderNotification>> getSharedFolderNotifications(
+    String? userId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getSharedFolderNotifications, [userId]),
+            returnValue: _i3.Future<List<_i9.SharedFolderNotification>>.value(
+              <_i9.SharedFolderNotification>[],
+            ),
+          )
+          as _i3.Future<List<_i9.SharedFolderNotification>>);
+
+  @override
+  _i3.Stream<List<_i9.SharedFolderNotification>>
+  streamSharedFolderNotifications(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#streamSharedFolderNotifications, [userId]),
+            returnValue: _i3.Stream<List<_i9.SharedFolderNotification>>.empty(),
+          )
+          as _i3.Stream<List<_i9.SharedFolderNotification>>);
+
+  @override
+  _i3.Future<void> markNotificationAsRead(String? notificationId) =>
+      (super.noSuchMethod(
+            Invocation.method(#markNotificationAsRead, [notificationId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> deleteNotification(String? notificationId) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteNotification, [notificationId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<int> getUnreadNotificationCount(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getUnreadNotificationCount, [userId]),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
 }

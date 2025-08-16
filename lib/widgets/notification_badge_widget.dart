@@ -7,10 +7,10 @@ class NotificationBadgeWidget extends StatefulWidget {
   final VoidCallback? onTap;
 
   const NotificationBadgeWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<NotificationBadgeWidget> createState() => _NotificationBadgeWidgetState();

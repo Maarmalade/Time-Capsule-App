@@ -21,7 +21,8 @@ class SharedFolderSettingsPage extends StatefulWidget {
   });
 
   @override
-  State<SharedFolderSettingsPage> createState() => _SharedFolderSettingsPageState();
+  State<SharedFolderSettingsPage> createState() =>
+      _SharedFolderSettingsPageState();
 }
 
 class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
@@ -57,24 +58,17 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
       _isOwner = widget.folder.userId == currentUser.uid;
 
       // Load shared folder data
-      final sharedData = await _folderService.getSharedFolderData(widget.folderId);
+      final sharedData = await _folderService.getSharedFolderData(
+        widget.folderId,
+      );
       if (sharedData == null) {
         throw Exception('This is not a shared folder');
       }
 
-      // Load contributor profiles
-      final contributorProfiles = <UserProfile>[];
-      for (final contributorId in sharedData.contributorIds) {
-        try {
-          final profile = await _getUserProfile(contributorId);
-          if (profile != null) {
-            contributorProfiles.add(profile);
-          }
-        } catch (e) {
-          // Skip contributors that can't be loaded
-          debugPrint('Failed to load contributor $contributorId: $e');
-        }
-      }
+      // Load contributor profiles using the proper service method
+      final contributorProfiles = await _folderService.getFolderContributors(
+        widget.folderId,
+      );
 
       // Load available friends (only for owner)
       List<UserProfile> availableFriends = [];
@@ -96,19 +90,6 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
     }
   }
 
-  Future<UserProfile?> _getUserProfile(String userId) async {
-    // This is a simplified version - in a real app you'd have a user service
-    // For now, we'll create a basic profile
-    return UserProfile(
-      id: userId,
-      email: 'user@example.com',
-      username: 'User $userId',
-      profilePictureUrl: null,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-  }
-
   Future<void> _inviteContributors() async {
     if (!_isOwner || _sharedData == null) return;
 
@@ -124,7 +105,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
 
     try {
       await _folderService.inviteContributors(widget.folderId, selectedIds);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -153,7 +134,11 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
     final confirmed = await ConfirmationDialog.show(
       context: context,
       title: 'Remove Contributor',
-      message: 'Are you sure you want to remove ${contributor.username} as a contributor? They will no longer be able to add content to this folder.',
+      message:
+          'Are you sure you want to remove ${contributor.username} as a contributor?\n\n'
+          '• They will no longer be able to add content to this folder\n'
+          '• They will be notified about the removal\n'
+          '• This action cannot be undone',
       confirmText: 'Remove',
       cancelText: 'Cancel',
       confirmColor: Colors.red,
@@ -163,7 +148,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
 
     try {
       await _folderService.removeContributor(widget.folderId, contributor.id);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -192,7 +177,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
     final isLocked = _sharedData!.isLocked;
     final action = isLocked ? 'unlock' : 'lock';
     final actionTitle = isLocked ? 'Unlock Folder' : 'Lock Folder';
-    
+
     final confirmed = await ConfirmationDialog.show(
       context: context,
       title: actionTitle,
@@ -212,11 +197,13 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
       } else {
         await _folderService.lockFolder(widget.folderId);
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Folder ${isLocked ? 'unlocked' : 'locked'} successfully'),
+            content: Text(
+              'Folder ${isLocked ? 'unlocked' : 'locked'} successfully',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -248,19 +235,14 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? ErrorDisplayWidget(
-                  message: _error!,
-                  onRetry: _loadData,
-                )
-              : _buildContent(theme),
+          ? ErrorDisplayWidget(message: _error!, onRetry: _loadData)
+          : _buildContent(theme),
     );
   }
 
   Widget _buildContent(ThemeData theme) {
     if (_sharedData == null) {
-      return const Center(
-        child: Text('Failed to load shared folder data'),
-      );
+      return const Center(child: Text('Failed to load shared folder data'));
     }
 
     return SingleChildScrollView(
@@ -292,10 +274,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.folder_shared,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.folder_shared, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Folder Information',
@@ -312,11 +291,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
               _buildInfoRow('Description', widget.folder.description!, theme),
             ],
             const SizedBox(height: 8),
-            _buildInfoRow(
-              'Role', 
-              _isOwner ? 'Owner' : 'Contributor', 
-              theme,
-            ),
+            _buildInfoRow('Role', _isOwner ? 'Owner' : 'Contributor', theme),
           ],
         ),
       ),
@@ -337,19 +312,14 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
             ),
           ),
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium,
-          ),
-        ),
+        Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
       ],
     );
   }
 
   Widget _buildLockStatusCard(ThemeData theme) {
     final isLocked = _sharedData!.isLocked;
-    
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -360,7 +330,9 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
               children: [
                 Icon(
                   isLocked ? Icons.lock : Icons.lock_open,
-                  color: isLocked ? theme.colorScheme.error : theme.colorScheme.primary,
+                  color: isLocked
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -373,7 +345,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              isLocked 
+              isLocked
                   ? 'This folder is locked. Contributors cannot add new content.'
                   : 'This folder is unlocked. Contributors can add new content.',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -389,8 +361,8 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
                   icon: Icon(isLocked ? Icons.lock_open : Icons.lock),
                   label: Text(isLocked ? 'Unlock Folder' : 'Lock Folder'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: isLocked 
-                        ? theme.colorScheme.primary 
+                    backgroundColor: isLocked
+                        ? theme.colorScheme.primary
                         : theme.colorScheme.error,
                   ),
                 ),
@@ -411,10 +383,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.people,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.people, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Contributors',
@@ -433,7 +402,7 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            
+
             if (_contributors.isEmpty) ...[
               Center(
                 child: Column(

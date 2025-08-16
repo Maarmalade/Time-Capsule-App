@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../lib/models/scheduled_message_model.dart';
-import '../../lib/models/user_profile.dart';
-import '../../lib/pages/scheduled_messages/scheduled_messages_page.dart';
+import 'package:time_capsule/models/scheduled_message_model.dart';
+import 'package:time_capsule/models/user_profile.dart';
+import 'package:time_capsule/pages/scheduled_messages/scheduled_messages_page.dart';
 
 void main() {
   group('ScheduledMessageCard', () {

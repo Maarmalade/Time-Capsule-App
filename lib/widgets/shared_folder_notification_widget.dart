@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/shared_folder_notification_model.dart';
-import '../services/folder_service.dart';
 
 class SharedFolderNotificationWidget extends StatelessWidget {
   final SharedFolderNotification notification;
@@ -9,12 +8,12 @@ class SharedFolderNotificationWidget extends StatelessWidget {
   final VoidCallback? onDelete;
 
   const SharedFolderNotificationWidget({
-    Key? key,
+    super.key,
     required this.notification,
     this.onTap,
     this.onMarkAsRead,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

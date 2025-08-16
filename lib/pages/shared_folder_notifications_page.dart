@@ -5,7 +5,7 @@ import '../services/folder_service.dart';
 import '../widgets/shared_folder_notification_widget.dart';
 
 class SharedFolderNotificationsPage extends StatefulWidget {
-  const SharedFolderNotificationsPage({Key? key}) : super(key: key);
+  const SharedFolderNotificationsPage({super.key});
 
   @override
   State<SharedFolderNotificationsPage> createState() => _SharedFolderNotificationsPageState();

@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import '../../lib/services/scheduled_message_service.dart';
-import '../../lib/models/scheduled_message_model.dart';
+import 'package:time_capsule/models/scheduled_message_model.dart';
 
 /// This file demonstrates how the new media upload functionality would be used
 /// in practice. These are example tests that show the API usage patterns.

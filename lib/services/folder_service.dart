@@ -637,19 +637,20 @@ class FolderService {
   Future<void> lockFolder(String folderId) async {
     try {
       if (folderId.isEmpty) {
-        throw Exception('Folder ID is required');
+        throw Exception('Folder ID cannot be empty');
       }
 
-      // Get current folder data
-      final folderDoc = await _firestore
-          .collection('folders')
-          .doc(folderId)
-          .get();
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to lock folder');
+      }
+
+      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
-      final folderData = folderDoc.data() as Map<String, dynamic>;
+      final folderData = folderDoc.data()!;
       final isShared = folderData['isShared'] ?? false;
 
       if (!isShared) {
@@ -661,10 +662,10 @@ class FolderService {
         'lockedAt': Timestamp.fromDate(DateTime.now()),
       });
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
+      if (e.code == 'permission-denied') {
+        throw Exception('You do not have permission to lock this folder');
+      } else if (e.code == 'not-found') {
+        throw Exception('Folder not found');
       }
       throw Exception(
         'Failed to lock folder: ${ErrorHandler.getErrorMessage(e)}',
@@ -676,19 +677,20 @@ class FolderService {
   Future<void> unlockFolder(String folderId) async {
     try {
       if (folderId.isEmpty) {
-        throw Exception('Folder ID is required');
+        throw Exception('Folder ID cannot be empty');
       }
 
-      // Get current folder data
-      final folderDoc = await _firestore
-          .collection('folders')
-          .doc(folderId)
-          .get();
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to unlock folder');
+      }
+
+      final folderDoc = await _firestore.collection('folders').doc(folderId).get();
       if (!folderDoc.exists) {
         throw Exception('Folder not found');
       }
 
-      final folderData = folderDoc.data() as Map<String, dynamic>;
+      final folderData = folderDoc.data()!;
       final isShared = folderData['isShared'] ?? false;
 
       if (!isShared) {
@@ -700,10 +702,10 @@ class FolderService {
         'lockedAt': null,
       });
     } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
+      if (e.code == 'permission-denied') {
+        throw Exception('You do not have permission to unlock this folder');
+      } else if (e.code == 'not-found') {
+        throw Exception('Folder not found');
       }
       throw Exception(
         'Failed to unlock folder: ${ErrorHandler.getErrorMessage(e)}',
@@ -912,35 +914,31 @@ class FolderService {
   }) {
     try {
       if (userId.isEmpty) {
-        throw Exception('User ID is required');
+        return Stream.value(<folder_model.FolderModel>[]);
       }
 
+      // Use a simpler approach without orderBy to avoid index issues
       Query query = _firestore.collection('folders');
 
-      // Filter by parent folder
+      // Filter by parent folder first
       if (parentFolderId == null) {
         query = query.where('parentFolderId', isNull: true);
       } else {
         query = query.where('parentFolderId', isEqualTo: parentFolderId);
       }
 
-      // Include folders where user is owner OR contributor
-      query = query.where(
-        Filter.or(
-          Filter('userId', isEqualTo: userId),
-          Filter('contributorIds', arrayContains: userId),
-        ),
-      );
-
       return query
-          .orderBy('createdAt', descending: false)
           .snapshots()
-          .map(
-            (snap) => snap.docs
+          .map((snap) {
+            final folders = snap.docs
                 .map((d) => folder_model.FolderModel.fromDoc(d))
                 .where((folder) => _canUserAccessFolder(folder, userId))
-                .toList(),
-          );
+                .toList();
+            
+            // Sort client-side to avoid Firestore index issues
+            folders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            return folders;
+          });
     } catch (e) {
       // Return empty stream on error to prevent UI crashes
       return Stream.value(<folder_model.FolderModel>[]);
@@ -1278,6 +1276,60 @@ class FolderService {
       return querySnapshot.docs.length;
     } catch (e) {
       return 0;
+    }
+  }
+
+  // Get shared folders between current user and another user
+  Future<List<folder_model.FolderModel>> getSharedFoldersBetweenUsers(String otherUserId) async {
+    try {
+      if (otherUserId.isEmpty) {
+        throw Exception('Other user ID is required');
+      }
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in');
+      }
+
+      // Get folders where current user is owner and other user is contributor
+      final ownedFoldersQuery = await _firestore
+          .collection('folders')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('isShared', isEqualTo: true)
+          .where('contributorIds', arrayContains: otherUserId)
+          .get();
+
+      // Get folders where other user is owner and current user is contributor
+      final contributedFoldersQuery = await _firestore
+          .collection('folders')
+          .where('userId', isEqualTo: otherUserId)
+          .where('isShared', isEqualTo: true)
+          .where('contributorIds', arrayContains: currentUser.uid)
+          .get();
+
+      final List<folder_model.FolderModel> sharedFolders = [];
+
+      // Add owned folders
+      for (final doc in ownedFoldersQuery.docs) {
+        sharedFolders.add(folder_model.FolderModel.fromDoc(doc));
+      }
+
+      // Add contributed folders
+      for (final doc in contributedFoldersQuery.docs) {
+        sharedFolders.add(folder_model.FolderModel.fromDoc(doc));
+      }
+
+      // Sort by creation date (newest first)
+      sharedFolders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return sharedFolders;
+    } on FirebaseException catch (e) {
+      throw Exception(ErrorHandler.getErrorMessage(e));
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Failed to get shared folders between users: $e');
     }
   }
 }

@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:time_capsule/services/folder_service.dart';
 import 'package:time_capsule/services/media_service.dart';
 import 'package:time_capsule/services/user_profile_service.dart';
-import 'package:time_capsule/models/shared_folder_notification_model.dart';
 
 void main() {
   group('FolderService Notification Tests', () {

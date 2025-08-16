@@ -81,10 +81,15 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
 
       _isOwner = widget.folder.userId == currentUser.uid;
 
-      // Check if this is a shared folder
-      final sharedData = await _folderService.getSharedFolderData(
-        widget.folder.id,
-      );
+      // Check if this is a shared folder with safe loading
+      SharedFolderData? sharedData;
+      try {
+        sharedData = await _folderService.getSharedFolderData(widget.folder.id);
+      } catch (e) {
+        // If shared folder data loading fails, treat as non-shared folder
+        sharedData = null;
+      }
+
       final canContribute = await _folderService.canUserContribute(
         widget.folder.id,
         currentUser.uid,

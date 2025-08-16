@@ -2,14 +2,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../lib/services/folder_service.dart';
-import '../../lib/models/folder_model.dart';
+import 'package:mockito/mockito.dart';
+import 'package:time_capsule/services/folder_service.dart';
+import 'package:time_capsule/services/media_service.dart';
+import 'package:time_capsule/services/storage_service.dart';
+import 'package:time_capsule/services/user_profile_service.dart';
+import 'package:time_capsule/models/folder_model.dart';
+
+// Mock services for testing
+class MockStorageService extends Mock implements StorageService {}
+class MockUserProfileService extends Mock implements UserProfileService {}
 
 void main() {
   group('Shared Folder Access Integration Tests', () {
     late FolderService folderService;
     late FakeFirebaseFirestore fakeFirestore;
     late MockFirebaseAuth mockAuth;
+    late MediaService mockMediaService;
+    late MockUserProfileService mockUserProfileService;
 
     const String userId1 = 'user1';
     const String userId2 = 'user2';
@@ -18,10 +28,17 @@ void main() {
     setUp(() {
       fakeFirestore = FakeFirebaseFirestore();
       mockAuth = MockFirebaseAuth(signedIn: true);
+      mockUserProfileService = MockUserProfileService();
+      mockMediaService = MediaService(
+        firestore: fakeFirestore,
+        storageService: MockStorageService(),
+      );
       
       folderService = FolderService(
         firestore: fakeFirestore,
         auth: mockAuth,
+        mediaService: mockMediaService,
+        userProfileService: mockUserProfileService,
       );
     });
 

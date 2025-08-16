@@ -5,6 +5,7 @@ import '../../widgets/friend_list_tile.dart';
 import '../../utils/error_handler.dart';
 import 'add_friend_page.dart';
 import 'friend_requests_page.dart';
+import 'shared_folders_page.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -134,19 +135,9 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   void _navigateToSharedFolders(UserProfile friend) {
-    // TODO: Navigate to shared folders with this friend
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Shared folders with ${friend.username} - Coming soon!'),
-      ),
-    );
-  }
-
-  void _navigateToMessaging(UserProfile friend) {
-    // TODO: Navigate to messaging with this friend
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Messaging with ${friend.username} - Coming soon!'),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SharedFoldersPage(friend: friend),
       ),
     );
   }
@@ -495,14 +486,6 @@ class _FriendsPageState extends State<FriendsPage> {
               onTap: () {
                 Navigator.pop(context);
                 _navigateToSharedFolders(friend);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.message),
-              title: const Text('Send Message'),
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToMessaging(friend);
               },
             ),
             ListTile(
