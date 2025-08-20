@@ -266,11 +266,48 @@ ccounts
   - Add error handling for profile picture loading and caching failures
   - _Requirements: 1.2, 2.3, 4.6, 7.6_
 
-- [ ] 20. Test and validate all implemented features
+- [x] 20. Fix Firebase Storage configuration and App Check integration
+
+
+
+
+
+  - Configure Firebase App Check to eliminate placeholder token warnings
+  - Update Firebase Storage security rules to properly handle video file access
+  - Implement proper authentication for video file downloads
+  - Add error handling for App Check token failures
+
+
+
+  - _Requirements: 8.3, 8.4, 8.8_
+
+- [ ] 21. Implement video playback functionality
+
+
+  - Create VideoPlayerWidget with proper error handling and loading states
+
+
+
+  - Add video thumbnail generation for preview purposes
+  - Implement proper video player lifecycle management
+  - Add support for common video formats (mp4, mov, etc.)
+  - _Requirements: 8.1, 8.2, 8.7_
+
+- [ ] 22. Fix video upload state management
+
+
+  - Properly handle Firebase Storage upload state transitions
+  - Add progress indicators for video upload process
+  - Implement retry mechanisms for failed video uploads
+  - Fix upload task cancellation and state management issues
+  - _Requirements: 8.4, 8.6_
+
+- [ ] 23. Test and validate all implemented features
 
 
   - Test scheduled message creation with multiple images and video
-  - Verify shared folder contributor notifications and access
+  - Verify video playback functionality across all features (scheduled messages, digital diary, memory albums)
+  - Test shared folder contributor notifications and access
   - Test friend interaction navigation to shared folders
   - Validate profile picture consistency when switching users
   - Ensure all UI elements are properly updated and unnecessary elements removed

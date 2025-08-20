@@ -10,6 +10,7 @@ import '../../services/friend_service.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../widgets/media_attachment_widget.dart';
+import '../../services/video_integration_service.dart';
 
 class FullScreenImageViewer extends StatelessWidget {
   final String imageUrl;
@@ -200,7 +201,7 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
 
     try {
       final result = await _messageService.triggerMessageDelivery();
-      
+
       if (mounted) {
         showDialog(
           context: context,
@@ -273,12 +274,12 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
                   duration: Duration(seconds: 3),
                 ),
               );
-              
+
               // Trigger cloud function and local checks
               await _messageService.triggerCloudFunctionDelivery();
               await _messageService.checkReadyMessages();
               await _refreshData();
-              
+
               // Hide loading and show success
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1285,19 +1286,47 @@ class ScheduledMessageCard extends StatelessWidget {
   }
 
   Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-        color: theme.colorScheme.surfaceContainerHighest,
-      ),
-      child: Icon(
-        Icons.videocam,
-        color: theme.colorScheme.onSurfaceVariant,
-        size: 32,
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: () => VideoIntegrationService.showFullScreenVideo(
+          context,
+          videoUrl,
+          title: 'Scheduled Message Video',
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.3),
+            ),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.videocam,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 32,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.8),
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: theme.colorScheme.onPrimary,
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1618,19 +1647,47 @@ class ReceivedMessageCard extends StatelessWidget {
   }
 
   Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-        color: theme.colorScheme.surfaceContainerHighest,
-      ),
-      child: Icon(
-        Icons.videocam,
-        color: theme.colorScheme.onSurfaceVariant,
-        size: 32,
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: () => VideoIntegrationService.showFullScreenVideo(
+          context,
+          videoUrl,
+          title: 'Scheduled Message Video',
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.3),
+            ),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.videocam,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 32,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.8),
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: theme.colorScheme.onPrimary,
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1863,18 +1920,46 @@ class MessageViewDialog extends StatelessWidget {
   }
 
   Widget _buildVideoThumbnail(String videoUrl, ThemeData theme) {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-        color: theme.colorScheme.surfaceContainerHighest,
-      ),
-      child: Icon(
-        Icons.videocam,
-        color: theme.colorScheme.onSurfaceVariant,
-        size: 48,
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: () => VideoIntegrationService.showFullScreenVideo(
+          context,
+          videoUrl,
+          title: 'Scheduled Message Video',
+        ),
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.3),
+            ),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.videocam,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 48,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.8),
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.play_arrow,
+                  color: theme.colorScheme.onPrimary,
+                  size: 24,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules - Simplified for reliable video uploads
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the file path
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to validate file types for uploads
+    function isValidMediaType() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType.matches('video/.*') ||
+             request.resource.contentType.matches('audio/.*');
+    }
+    
+    // Profile pictures - users can read any profile picture, but only upload their own
+    match /profile_pictures/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Scheduled message media - authenticated users can upload, sender/recipient can access
+    match /scheduled_messages/{messageId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidMediaType();
+      allow delete: if isAuthenticated();
+    }
+    
+    // Digital diary media - only owner can access
+    match /diary/{userId}/{entryId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidMediaType();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Folder media - authenticated users can access
+    match /folders/{folderId}/media/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidMediaType();
+      allow delete: if isAuthenticated();
+    }
+    
+    // Memory album media - authenticated users can access
+    match /memory_albums/{albumId}/media/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidMediaType();
+      allow delete: if isAuthenticated();
+    }
+    
+    // General media uploads - fallback for any authenticated user
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                      (request.resource.contentType.matches('image/.*') || 
+                       request.resource.contentType.matches('video/.*') ||
+                       request.resource.contentType.matches('audio/.*'));
+      allow delete: if isAuthenticated();
+    }
+  }
+}

@@ -6,6 +6,7 @@ import '../../services/scheduled_message_service.dart';
 import '../../services/friend_service.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/profile_picture_widget.dart';
+import '../../services/video_integration_service.dart';
 
 class DeliveredMessagesPage extends StatefulWidget {
   const DeliveredMessagesPage({super.key});
@@ -808,9 +809,12 @@ class MessageDetailsDialog extends StatelessWidget {
   }
 
   void _playVideo(BuildContext context) {
-    // TODO: Implement video player
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Video playback not yet implemented')),
+    if (message.videoUrl == null) return;
+    
+    VideoIntegrationService.showFullScreenVideo(
+      context,
+      message.videoUrl!,
+      title: 'Video Message',
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/media_file_model.dart';
+import '../../services/video_integration_service.dart';
 
 class MediaViewerPage extends StatelessWidget {
   final MediaFileModel media;
@@ -13,8 +14,19 @@ class MediaViewerPage extends StatelessWidget {
         child: Image.network(media.url),
       );
     } else if (media.type == 'video') {
-      // You can use a video player package for real video playback
-      content = const Center(child: Icon(Icons.videocam, size: 120));
+      content = VideoIntegrationService.createInlineVideoPlayer(
+        videoUrl: media.url,
+        autoPlay: false,
+        showControls: true,
+        onError: (error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Video playback error: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        },
+      );
     } else if (media.type == 'text') {
       content = Padding(
         padding: const EdgeInsets.all(16.0),

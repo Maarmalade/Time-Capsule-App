@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/diary_entry_model.dart';
+import '../../services/video_integration_service.dart';
 import 'diary_entry_page.dart';
 
 class DiaryViewerPage extends StatelessWidget {
@@ -16,8 +17,10 @@ class DiaryViewerPage extends StatelessWidget {
         title: Text(dateStr),
         actions: [
           IconButton(
-            icon: Icon(entry.isFavorite ? Icons.star : Icons.star_border,
-                color: entry.isFavorite ? Colors.yellow : null),
+            icon: Icon(
+              entry.isFavorite ? Icons.star : Icons.star_border,
+              color: entry.isFavorite ? Colors.yellow : null,
+            ),
             onPressed: () {}, // Could implement favorite toggle here
           ),
           IconButton(
@@ -26,7 +29,8 @@ class DiaryViewerPage extends StatelessWidget {
               final updated = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DiaryEntryPage(date: entry.date, entry: entry),
+                  builder: (_) =>
+                      DiaryEntryPage(date: entry.date, entry: entry),
                 ),
               );
               if (updated == true && context.mounted) {
@@ -46,7 +50,10 @@ class DiaryViewerPage extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Text(
                   entry.title,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             Text(entry.text, style: const TextStyle(fontSize: 18)),
@@ -54,25 +61,58 @@ class DiaryViewerPage extends StatelessWidget {
             Wrap(
               spacing: 8,
               children: [
-                ...entry.media.map((m) => m.type == 'image'
-                    ? GestureDetector(
-                        onTap: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => Dialog(
-                              backgroundColor: Colors.transparent,
-                              child: InteractiveViewer(
-                                child: Container(
-                                  color: Colors.black,
-                                  child: Image.network(m.url, fit: BoxFit.contain),
+                ...entry.media.map(
+                  (m) => m.type == 'image'
+                      ? GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => Dialog(
+                                backgroundColor: Colors.transparent,
+                                child: InteractiveViewer(
+                                  child: Container(
+                                    color: Colors.black,
+                                    child: Image.network(
+                                      m.url,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
                                 ),
                               ),
+                            );
+                          },
+                          child: Image.network(m.url, width: 60, height: 60),
+                        )
+                      : GestureDetector(
+                          onTap: () => _playVideo(context, m.url),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.black12,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          );
-                        },
-                        child: Image.network(m.url, width: 60, height: 60),
-                      )
-                    : Icon(Icons.videocam, size: 60)),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Icon(Icons.videocam, size: 30),
+                                Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(4),
+                                  child: const Icon(
+                                    Icons.play_arrow,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
               ],
             ),
           ],
@@ -81,10 +121,29 @@ class DiaryViewerPage extends StatelessWidget {
     );
   }
 
+  void _playVideo(BuildContext context, String videoUrl) {
+    VideoIntegrationService.showFullScreenVideo(
+      context,
+      videoUrl,
+      title: 'Diary Video',
+    );
+  }
+
   String _monthName(int month) {
     const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month];
   }

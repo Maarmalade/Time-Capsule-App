@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/comprehensive_error_handler.dart';
 import '../utils/validation_utils.dart';
+import '../services/video_integration_service.dart';
 
 class MediaAttachmentWidget extends StatefulWidget {
   final List<File> selectedImages;
@@ -259,6 +260,14 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
     }
   }
 
+  void _previewVideo(File video) {
+    VideoIntegrationService.showFullScreenVideo(
+      context,
+      video.path,
+      title: 'Video Preview',
+    );
+  }
+
   Widget _buildImagePreview(File image, int index) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -388,19 +397,22 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
             ),
           ),
           
-          // Play indicator
+          // Play indicator - make it tappable
           Center(
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.play_arrow,
-                size: 30,
-                color: Theme.of(context).colorScheme.onPrimary,
+            child: GestureDetector(
+              onTap: () => _previewVideo(video),
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.play_arrow,
+                  size: 30,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
             ),
           ),

@@ -96,3 +96,18 @@ This document outlines the requirements for implementing critical bug fixes and 
 6. WHEN no profile picture is set THEN the system SHALL display a consistent default avatar across all screens
 7. WHEN loading profile pictures THEN the system SHALL implement proper caching to ensure consistent display
 8. WHEN switching users THEN the system SHALL clear any cached profile picture data from the previous user
+
+### Requirement 8: Video Playback and Firebase Storage Configuration
+
+**User Story:** As a user, I want to view videos that I have uploaded to scheduled messages, digital diary, and memory albums, so that I can properly access and play back my media content.
+
+#### Acceptance Criteria
+
+1. WHEN a user uploads a video to any feature THEN the system SHALL store it in Firebase Storage with proper access permissions
+2. WHEN a user clicks on an uploaded video THEN the system SHALL display the video in a playable format without errors
+3. WHEN Firebase Storage is accessed THEN the system SHALL handle App Check token requirements properly to avoid placeholder token warnings
+4. WHEN a video is being uploaded THEN the system SHALL provide proper progress feedback and handle upload state transitions correctly
+5. WHEN Firebase Storage rules are configured THEN the system SHALL allow authenticated users to read and write video files
+6. WHEN a video playback fails THEN the system SHALL display a meaningful error message to the user
+7. WHEN videos are stored THEN the system SHALL ensure proper file format support for common video types (mp4, mov, etc.)
+8. WHEN accessing stored videos THEN the system SHALL implement proper security rules that allow legitimate access while maintaining data protection

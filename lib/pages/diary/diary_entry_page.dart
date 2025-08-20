@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/diary_entry_model.dart';
 import '../../services/diary_service.dart';
+import '../../services/video_integration_service.dart';
 
 class DiaryEntryPage extends StatefulWidget {
   final DateTime date;
@@ -78,6 +79,14 @@ class _DiaryEntryPageState extends State<DiaryEntryPage> {
         _loading = false;
       });
     }
+  }
+
+  void _playVideo(String videoUrl) {
+    VideoIntegrationService.showFullScreenVideo(
+      context,
+      videoUrl,
+      title: 'Diary Video',
+    );
   }
 
   Future<void> _saveEntry() async {
@@ -169,7 +178,35 @@ class _DiaryEntryPageState extends State<DiaryEntryPage> {
                           ? (m.url.startsWith('http')
                               ? Image.network(m.url, width: 60, height: 60)
                               : Image.file(File(m.url), width: 60, height: 60))
-                          : Icon(Icons.videocam, size: 60)),
+                          : GestureDetector(
+                              onTap: () => _playVideo(m.url),
+                              child: Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.black12,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    const Icon(Icons.videocam, size: 30),
+                                    Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.blue,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: const Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )),
                     ],
                   ),
                   const Spacer(),

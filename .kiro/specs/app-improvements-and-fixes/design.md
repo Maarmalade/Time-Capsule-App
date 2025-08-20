@@ -286,6 +286,44 @@ class ProfilePictureCache {
 - Proper cleanup of old profile pictures
 - Access control for profile picture URLs
 
+### 5. Video Playback and Firebase Storage Configuration
+
+#### Firebase Storage Setup
+```dart
+// Enhanced Firebase Storage configuration
+class StorageService {
+  // Proper App Check integration
+  Future<void> initializeAppCheck();
+  
+  // Video upload with proper state management
+  Future<String> uploadVideo(File videoFile, String path);
+  
+  // Video URL generation with proper access tokens
+  Future<String> getVideoDownloadUrl(String videoPath);
+  
+  // Handle upload state transitions properly
+  void handleUploadStateChanges(UploadTask task);
+}
+```
+
+#### Video Player Integration
+```dart
+// Enhanced video player widget
+class VideoPlayerWidget extends StatefulWidget {
+  final String videoUrl;
+  final bool autoPlay;
+  
+  // Proper error handling for video loading
+  // Progress indicators for video buffering
+  // Fallback UI for unsupported formats
+}
+```
+
+#### Firebase Security Rules Enhancement
+- Update Storage rules to properly handle authenticated video access
+- Implement proper read/write permissions for video files
+- Configure App Check to eliminate placeholder token warnings
+
 ## Performance Optimizations
 
 ### Media Handling
@@ -293,6 +331,7 @@ class ProfilePictureCache {
 - Progressive loading for media previews
 - Efficient caching of media thumbnails
 - Background upload with progress tracking
+- **Video optimization**: Compress videos before upload and implement adaptive streaming
 
 ### Real-time Updates
 - Optimized Firestore queries with proper indexing
@@ -305,3 +344,9 @@ class ProfilePictureCache {
 - Lazy loading of profile pictures
 - Efficient memory management for image cache
 - Background refresh of expired cache entries
+
+### Video Playback Performance
+- Implement video thumbnail generation for quick previews
+- Use progressive download for large video files
+- Cache video metadata to reduce loading times
+- Implement proper video player lifecycle management
