@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:time_capsule/pages/friends/shared_folders_page.dart';
 import 'package:time_capsule/models/user_profile.dart';
-import 'package:time_capsule/models/folder_model.dart';
 
 void main() {
   group('SharedFoldersPage Integration Tests', () {

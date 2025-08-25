@@ -2,13 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'routes.dart';
 import 'constants/route_constants.dart';
 import 'services/profile_picture_service.dart';
+import 'design_system/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set system UI overlay style for professional appearance
+  AppTheme.setSystemUIOverlayStyle();
+  
+  // Configure Google Fonts license handling
+  GoogleFonts.config.allowRuntimeFetching = false;
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -60,11 +69,27 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Time Capsule',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
+      // Apply the comprehensive professional UI theme
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: AppTheme.getThemeMode(),
       initialRoute: Routes.login,
       onGenerateRoute: generateRoute,
+      // Ensure proper theme application and professional appearance
+      debugShowCheckedModeBanner: false,
+      // Configure builder to ensure theme is properly applied
+      builder: (context, child) {
+        return MediaQuery(
+          // Ensure text scaling respects system settings while maintaining design consistency
+          data: MediaQuery.of(context).copyWith(
+            textScaler: MediaQuery.of(context).textScaler.clamp(
+              minScaleFactor: 0.8,
+              maxScaleFactor: 1.3,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

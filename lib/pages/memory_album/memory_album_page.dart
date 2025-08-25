@@ -15,6 +15,9 @@ import '../../widgets/batch_action_bar.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/error_display_widget.dart';
+import '../../design_system/app_colors.dart';
+import '../../design_system/app_typography.dart';
+import '../../design_system/app_spacing.dart';
 
 class MemoryAlbumPage extends StatefulWidget {
   const MemoryAlbumPage({super.key});
@@ -61,32 +64,51 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
       listenable: _multiSelectManager,
       builder: (context, child) {
         return Scaffold(
+          backgroundColor: AppColors.surfacePrimary,
           appBar: AppBar(
             leading: _multiSelectManager.isMultiSelectMode
                 ? IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: AppColors.textPrimary,
+                    ),
                     onPressed: () => _multiSelectManager.exitMultiSelectMode(),
                   )
-                : const BackButton(),
+                : BackButton(
+                    color: AppColors.textPrimary,
+                  ),
             title: _multiSelectManager.isMultiSelectMode
-                ? Text('${_multiSelectManager.selectedCount} selected')
-                : const Text('My Memory Album'),
+                ? Text(
+                    '${_multiSelectManager.selectedCount} selected',
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  )
+                : Text(
+                    'My Memory Album',
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
             actions: _multiSelectManager.isMultiSelectMode
                 ? []
                 : [
                     GestureDetector(
                       onTap: () => Navigator.pushNamed(context, Routes.profile),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        padding: AppSpacing.paddingSm,
                         child: ProfilePictureWidget(
                           userProfile: _userProfile,
-                          size: 32.0,
+                          size: AppSpacing.iconSizeLarge,
                           showBorder: true,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.home),
+                      icon: Icon(
+                        Icons.home,
+                        color: AppColors.textPrimary,
+                      ),
                       onPressed: () =>
                           Navigator.popUntil(context, (route) => route.isFirst),
                     ),
@@ -118,24 +140,35 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
                     final items = [
                       // "+" card at the top left (hidden in multi-select mode)
                       if (!_multiSelectManager.isMultiSelectMode)
-                        GestureDetector(
-                          onTap: () async {
-                            await showDialog(
-                              context: context,
-                              builder: (_) =>
-                                  CreateFolderDialog(parentFolderId: null),
-                            );
-                          },
-                          child: Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            elevation: 4,
-                            child: const Center(
-                              child: Icon(
-                                Icons.add,
-                                size: 48,
-                                color: Colors.grey,
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () async {
+                              await showDialog(
+                                context: context,
+                                builder: (_) =>
+                                    CreateFolderDialog(parentFolderId: null),
+                              );
+                            },
+                            borderRadius: AppSpacing.cardRadius,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.surfacePrimary,
+                                borderRadius: AppSpacing.cardRadius,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.shadowMedium,
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.add,
+                                  size: 48,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ),
                           ),
@@ -157,9 +190,10 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
                     ];
                     return GridView.count(
                       crossAxisCount: 2,
-                      padding: const EdgeInsets.all(16),
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
+                      padding: AppSpacing.paddingMd,
+                      crossAxisSpacing: AppSpacing.md,
+                      mainAxisSpacing: AppSpacing.md,
+                      childAspectRatio: 1.0,
                       children: items,
                     );
                   },

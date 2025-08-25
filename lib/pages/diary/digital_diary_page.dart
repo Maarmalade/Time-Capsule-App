@@ -6,6 +6,9 @@ import '../../services/diary_service.dart';
 import 'diary_entry_page.dart';
 import 'diary_viewer_page.dart';
 import '../../constants/route_constants.dart';
+import '../../design_system/app_colors.dart';
+import '../../design_system/app_typography.dart';
+import '../../design_system/app_spacing.dart';
 
 class DigitalDiaryPage extends StatefulWidget {
   const DigitalDiaryPage({super.key});
@@ -27,7 +30,12 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Select month and year'),
+              title: Text(
+                'Select month and year',
+                style: AppTypography.headlineSmall.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
               content: SizedBox(
                 height: 120,
                 child: Column(
@@ -36,8 +44,15 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                       value: selectedYear,
                       items: List.generate(30, (i) => 2000 + i)
                           .map(
-                            (y) =>
-                                DropdownMenuItem(value: y, child: Text('$y')),
+                            (y) => DropdownMenuItem(
+                              value: y,
+                              child: Text(
+                                '$y',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
                           )
                           .toList(),
                       onChanged: (y) {
@@ -50,7 +65,12 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                           .map(
                             (m) => DropdownMenuItem(
                               value: m,
-                              child: Text(_monthName(m)),
+                              child: Text(
+                                _monthName(m),
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
                           )
                           .toList(),
@@ -64,14 +84,24 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text(
+                    'Cancel',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(
                     context,
                     DateTime(selectedYear, selectedMonth),
                   ),
-                  child: const Text('OK'),
+                  child: Text(
+                    'OK',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.accentBlue,
+                    ),
+                  ),
                 ),
               ],
             );
@@ -138,13 +168,13 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
     if (day.year == today.year &&
         day.month == today.month &&
         day.day == today.day) {
-      return Colors.red;
+      return AppColors.accentBlue;
     } else if (entry?.isFavorite == true) {
-      return Colors.yellow;
+      return AppColors.warningAmber;
     } else if (entry != null) {
-      return Colors.grey;
+      return AppColors.successGreen;
     } else {
-      return Colors.black;
+      return AppColors.borderMedium;
     }
   }
 
@@ -177,97 +207,198 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surfacePrimary,
       appBar: AppBar(
-        leading: BackButton(),
-        title: const Text('Digital Diary'),
+        leading: BackButton(
+          color: AppColors.textPrimary,
+        ),
+        title: Text(
+          'Digital Diary',
+          style: AppTypography.headlineMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
+            icon: Icon(
+              Icons.person,
+              color: AppColors.textPrimary,
+            ),
             onPressed: () => Navigator.pushNamed(context, Routes.profile),
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                TableCalendar(
-                  firstDay: DateTime.utc(2000, 1, 1),
-                  lastDay: DateTime.utc(2100, 12, 31),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  onDaySelected: _onDaySelected,
-                  onPageChanged: (focusedDay) {
-                    setState(() {
-                      _focusedDay = focusedDay;
-                    });
-                    _fetchEntries();
-                  },
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, focusedDay) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: _getBorderColor(day),
-                            width: 2,
-                          ),
+          ? Center(
+              child: CircularProgressIndicator(
+                color: AppColors.accentBlue,
+              ),
+            )
+          : Padding(
+              padding: AppSpacing.paddingMd,
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePrimary,
+                      borderRadius: AppSpacing.cardRadius,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.shadowLight,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Center(child: Text('${day.day}')),
-                      );
-                    },
-                    todayBuilder: (context, day, focusedDay) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: _getBorderColor(day),
-                            width: 2,
-                          ),
+                      ],
+                    ),
+                    child: TableCalendar(
+                      firstDay: DateTime.utc(2000, 1, 1),
+                      lastDay: DateTime.utc(2100, 12, 31),
+                      focusedDay: _focusedDay,
+                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                      onDaySelected: _onDaySelected,
+                      onPageChanged: (focusedDay) {
+                        setState(() {
+                          _focusedDay = focusedDay;
+                        });
+                        _fetchEntries();
+                      },
+                      calendarStyle: CalendarStyle(
+                        outsideDaysVisible: false,
+                        weekendTextStyle: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
                         ),
-                        child: Center(
-                          child: Text(
-                            '${day.day}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                        defaultTextStyle: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textPrimary,
                         ),
-                      );
-                    },
-                    headerTitleBuilder: (context, day) {
-                      return GestureDetector(
-                        onTap: () async {
-                          final picked = await showMonthYearPicker(
-                            context,
-                            day,
+                        selectedTextStyle: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.primaryWhite,
+                          fontWeight: AppTypography.medium,
+                        ),
+                        todayTextStyle: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.primaryWhite,
+                          fontWeight: AppTypography.medium,
+                        ),
+                        selectedDecoration: BoxDecoration(
+                          color: AppColors.accentBlue,
+                          shape: BoxShape.circle,
+                        ),
+                        todayDecoration: BoxDecoration(
+                          color: AppColors.accentBlue.withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      headerStyle: HeaderStyle(
+                        formatButtonVisible: false,
+                        titleCentered: true,
+                        titleTextStyle: AppTypography.headlineSmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        leftChevronIcon: Icon(
+                          Icons.chevron_left,
+                          color: AppColors.textPrimary,
+                        ),
+                        rightChevronIcon: Icon(
+                          Icons.chevron_right,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      daysOfWeekStyle: DaysOfWeekStyle(
+                        weekdayStyle: AppTypography.labelMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        weekendStyle: AppTypography.labelMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      calendarBuilders: CalendarBuilders(
+                        defaultBuilder: (context, day, focusedDay) {
+                          return Container(
+                            margin: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _getBorderColor(day),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${day.day}',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
                           );
-                          if (picked != null) {
-                            setState(() {
-                              _focusedDay = picked;
-                              _selectedDay = picked;
-                            });
-                            _fetchEntries();
-                          }
                         },
-                        child: Text(
-                          '${_monthName(day.month)} ${day.year}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      );
-                    },
+                        todayBuilder: (context, day, focusedDay) {
+                          return Container(
+                            margin: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _getBorderColor(day),
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+                              color: AppColors.accentBlue.withValues(alpha: 0.1),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${day.day}',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.accentBlue,
+                                  fontWeight: AppTypography.medium,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        headerTitleBuilder: (context, day) {
+                          return GestureDetector(
+                            onTap: () async {
+                              final picked = await showMonthYearPicker(
+                                context,
+                                day,
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _focusedDay = picked;
+                                  _selectedDay = picked;
+                                });
+                                _fetchEntries();
+                              }
+                            },
+                            child: Text(
+                              '${_monthName(day.month)} ${day.year}',
+                              style: AppTypography.headlineSmall.copyWith(
+                                color: AppColors.textPrimary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: AppColors.accentBlue,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      availableCalendarFormats: const {
+                        CalendarFormat.month: 'Month',
+                      },
+                      headerVisible: true,
+                    ),
                   ),
-                  availableCalendarFormats: const {
-                    CalendarFormat.month: 'Month',
-                  },
-                  headerVisible: true,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _onDaySelected(DateTime.now(), _focusedDay),
-                  child: const Text('Write Diary for today!'),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(
+                    width: double.infinity,
+                    height: AppSpacing.minTouchTarget,
+                    child: ElevatedButton(
+                      onPressed: () => _onDaySelected(DateTime.now(), _focusedDay),
+                      child: Text(
+                        'Write Diary for today!',
+                        style: AppTypography.buttonText,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
     );
   }

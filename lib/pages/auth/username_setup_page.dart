@@ -4,7 +4,9 @@ import '../../services/user_profile_service.dart';
 import '../home/home_page.dart';
 import '../../utils/error_handler.dart';
 import '../../utils/validation_utils.dart';
-import '../../widgets/error_display_widget.dart';
+import '../../design_system/app_colors.dart';
+import '../../design_system/app_typography.dart';
+import '../../design_system/app_spacing.dart';
 
 class UsernameSetupPage extends StatefulWidget {
   const UsernameSetupPage({super.key});
@@ -68,9 +70,7 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
     }
   }
 
-  bool _isValidUsernameFormat(String username) {
-    return ValidationUtils.validateUsername(username) == null;
-  }
+
 
   Future<void> _createUsername() async {
     final username = _usernameController.text.trim();
@@ -121,104 +121,132 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surfacePrimary,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: AppSpacing.pageAll,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.xl),
                 Center(
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         'Time Capsule',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                        style: AppTypography.displayMedium.copyWith(
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      const Text(
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
                         'Choose Your Username',
-                        style: TextStyle(fontSize: 22),
+                        style: AppTypography.headlineMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
                         'Create a unique username to personalize your Time Capsule experience.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
-                      const SizedBox(height: 32),
-                      const Align(
+                      const SizedBox(height: AppSpacing.xl),
+                      Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('Username', style: TextStyle(fontSize: 16)),
+                        child: Text(
+                          'Username',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       _buildUsernameField(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       if (_availabilityMessage.isNotEmpty)
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
                             _availabilityMessage,
-                            style: TextStyle(
-                              fontSize: 14,
+                            style: AppTypography.bodySmall.copyWith(
                               color: _availabilityMessage.startsWith('✓') 
-                                  ? Colors.green 
+                                  ? AppColors.successGreen 
                                   : _availabilityMessage.startsWith('✗')
-                                      ? Colors.red
-                                      : Colors.grey,
+                                      ? AppColors.errorRed
+                                      : AppColors.textTertiary,
                             ),
                           ),
                         ),
-                      const SizedBox(height: 16),
-                      const Align(
+                      const SizedBox(height: AppSpacing.md),
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Username requirements:',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: AppTypography.medium,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Align(
+                      const SizedBox(height: AppSpacing.xs),
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           '• 3-20 characters\n• Letters, numbers, and underscores only\n• Must be unique',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: AppSpacing.xl),
                       if (_error.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: ErrorDisplayWidget(
-                            message: _error,
-                            showIcon: false,
-                            padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: Container(
+                            width: double.infinity,
+                            padding: AppSpacing.paddingMd,
+                            decoration: BoxDecoration(
+                              color: AppColors.errorRed.withValues(alpha: 0.1),
+                              borderRadius: AppSpacing.borderRadiusSm,
+                              border: Border.all(
+                                color: AppColors.errorRed.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              _error,
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.errorRed,
+                              ),
+                            ),
                           ),
                         ),
                       SizedBox(
                         width: 200,
-                        height: 48,
+                        height: AppSpacing.minTouchTarget,
                         child: ElevatedButton(
                           onPressed: (_loading || _checkingAvailability || 
                                      !_availabilityMessage.startsWith('✓')) 
                               ? null 
                               : _createUsername,
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              side: const BorderSide(color: Colors.black),
-                            ),
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            elevation: 4,
-                          ),
                           child: _loading
-                              ? const CircularProgressIndicator()
-                              : const Text('Continue'),
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.primaryWhite,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  'Continue',
+                                  style: AppTypography.buttonText,
+                                ),
                         ),
                       ),
                     ],
@@ -233,33 +261,72 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
   }
 
   Widget _buildUsernameField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: const Offset(2, 4),
-          ),
-        ],
+    return TextFormField(
+      controller: _usernameController,
+      onChanged: (_) {
+        // Debounce the availability check
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_usernameController.text.trim().isNotEmpty) {
+            _checkUsernameAvailability();
+          }
+        });
+      },
+      style: AppTypography.bodyMedium.copyWith(
+        color: AppColors.textPrimary,
       ),
-      child: TextField(
-        controller: _usernameController,
-        onChanged: (_) {
-          // Debounce the availability check
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (_usernameController.text.trim().isNotEmpty) {
-              _checkUsernameAvailability();
-            }
-          });
-        },
-        decoration: const InputDecoration(
-          hintText: 'Enter your username',
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: InputDecoration(
+        hintText: 'Enter your username',
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textTertiary,
         ),
+        filled: true,
+        fillColor: AppColors.surfaceSecondary,
+        border: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide(
+            color: AppColors.accentBlue,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide(
+            color: AppColors.errorRed,
+            width: 2,
+          ),
+        ),
+        contentPadding: AppSpacing.inputPadding,
+        suffixIcon: _checkingAvailability
+            ? Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.accentBlue,
+                    ),
+                  ),
+                ),
+              )
+            : _availabilityMessage.startsWith('✓')
+                ? Icon(
+                    Icons.check_circle,
+                    color: AppColors.successGreen,
+                    size: AppSpacing.iconSize,
+                  )
+                : _availabilityMessage.startsWith('✗')
+                    ? Icon(
+                        Icons.error,
+                        color: AppColors.errorRed,
+                        size: AppSpacing.iconSize,
+                      )
+                    : null,
       ),
     );
   }

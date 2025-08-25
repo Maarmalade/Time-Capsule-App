@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 
-import '../../lib/services/folder_service.dart';
-import '../../lib/models/folder_model.dart';
+import 'package:time_capsule/services/folder_service.dart';
+import 'package:time_capsule/models/folder_model.dart';
 
 @GenerateMocks([FirebaseFirestore, FirebaseAuth, User, CollectionReference, Query, QuerySnapshot])
 import 'memory_album_access_test.mocks.dart';

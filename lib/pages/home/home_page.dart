@@ -9,6 +9,9 @@ import '../../services/profile_picture_service.dart';
 import '../../models/user_profile.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../constants/route_constants.dart';
+import '../../design_system/app_colors.dart';
+import '../../design_system/app_typography.dart';
+import '../../design_system/app_spacing.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -26,17 +29,36 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
+          title: Text(
+            'Logout',
+            style: AppTypography.headlineSmall.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Logout'),
+              child: Text(
+                'Logout',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.errorRed,
+                ),
+              ),
             ),
           ],
         );
@@ -62,8 +84,13 @@ class _HomePageState extends State<HomePage> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Logout failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(
+              'Logout failed: ${e.toString()}',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.primaryWhite,
+              ),
+            ),
+            backgroundColor: AppColors.errorRed,
           ),
         );
       }
@@ -92,50 +119,72 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surfacePrimary,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+          padding: AppSpacing.pageAll,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header with navigation and profile
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, size: 32),
+                    icon: Icon(
+                      Icons.arrow_back,
+                      size: AppSpacing.iconSizeLarge,
+                      color: AppColors.textPrimary,
+                    ),
                     onPressed: () => Navigator.pop(context),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(
+                        AppSpacing.minTouchTarget,
+                        AppSpacing.minTouchTarget,
+                      ),
+                    ),
                   ),
                   Row(
                     children: [
                       GestureDetector(
                         onTap: () =>
                             Navigator.pushNamed(context, Routes.profile),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                        child: Container(
+                          padding: AppSpacing.paddingSm,
                           child: ProfilePictureWidget(
                             userProfile: _userProfile,
-                            size: 32.0,
+                            size: AppSpacing.iconSizeLarge,
                             showBorder: true,
                           ),
                         ),
                       ),
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 32),
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: AppSpacing.iconSizeLarge,
+                          color: AppColors.textPrimary,
+                        ),
                         onSelected: (value) {
                           if (value == 'logout') {
                             _showLogoutConfirmation(context);
                           }
                         },
                         itemBuilder: (BuildContext context) => [
-                          const PopupMenuItem<String>(
+                          PopupMenuItem<String>(
                             value: 'logout',
                             child: Row(
                               children: [
-                                Icon(Icons.logout, color: Colors.red),
-                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.logout,
+                                  color: AppColors.errorRed,
+                                  size: AppSpacing.iconSize,
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
                                 Text(
                                   'Logout',
-                                  style: TextStyle(color: Colors.red),
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: AppColors.errorRed,
+                                  ),
                                 ),
                               ],
                             ),
@@ -146,14 +195,20 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Center(
+              const SizedBox(height: AppSpacing.sm),
+              
+              // Page title
+              Center(
                 child: Text(
                   'Home Page',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                  style: AppTypography.displayMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.lg),
+              
+              // Main content grid
               Expanded(
                 child: HomePanelGrid(
                   diaryService: DiaryService(),
@@ -182,13 +237,20 @@ class _HomePageState extends State<HomePage> {
                         MaterialPageRoute(
                           builder: (_) => Scaffold(
                             appBar: AppBar(
-                              title: Text(pageName),
-                              leading: BackButton(),
+                              title: Text(
+                                pageName,
+                                style: AppTypography.headlineMedium.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
+                            backgroundColor: AppColors.surfacePrimary,
                             body: Center(
                               child: Text(
                                 'You are now in $pageName',
-                                style: TextStyle(fontSize: 24),
+                                style: AppTypography.headlineSmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ),

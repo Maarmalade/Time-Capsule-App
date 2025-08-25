@@ -5,6 +5,7 @@ import '../../services/diary_service.dart';
 import '../diary/diary_viewer_page.dart';
 import '../../models/diary_entry_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../design_system/app_spacing.dart';
 
 class HomePanelGrid extends StatelessWidget {
   final DiaryService diaryService;
@@ -70,8 +71,9 @@ class HomePanelGrid extends StatelessWidget {
         }
         return GridView.count(
           crossAxisCount: 2,
-          mainAxisSpacing: 24,
-          crossAxisSpacing: 24,
+          mainAxisSpacing: AppSpacing.lg,
+          crossAxisSpacing: AppSpacing.lg,
+          childAspectRatio: 1.0,
           children: cards,
         );
       },

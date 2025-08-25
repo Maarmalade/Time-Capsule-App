@@ -5,10 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
 
-import '../../lib/pages/scheduled_messages/scheduled_messages_page.dart';
-import '../../lib/services/scheduled_message_service.dart';
-import '../../lib/models/scheduled_message_model.dart';
-import '../../lib/models/user_profile.dart';
+import 'package:time_capsule/pages/scheduled_messages/scheduled_messages_page.dart';
+import 'package:time_capsule/services/scheduled_message_service.dart';
+import 'package:time_capsule/models/scheduled_message_model.dart';
+import 'package:time_capsule/models/user_profile.dart';
 
 @GenerateMocks([
   FirebaseAuth,

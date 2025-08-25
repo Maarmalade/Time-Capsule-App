@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:time_capsule/pages/friends/friends_page.dart';
 import 'package:time_capsule/pages/friends/shared_folders_page.dart';
 import 'package:time_capsule/models/user_profile.dart';
 
