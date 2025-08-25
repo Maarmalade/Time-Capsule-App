@@ -3,6 +3,7 @@ import '../models/folder_model.dart';
 import '../services/folder_service.dart';
 import '../constants/route_constants.dart';
 import 'confirmation_dialog.dart';
+import '../design_system/app_colors.dart';
 
 class FolderSettingsDialog extends StatefulWidget {
   final FolderModel folder;
@@ -133,7 +134,7 @@ class _FolderSettingsDialogState extends State<FolderSettingsDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update folder visibility: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.errorRed,
           ),
         );
       }

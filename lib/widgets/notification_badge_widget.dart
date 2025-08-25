@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/folder_service.dart';
+import '../design_system/app_colors.dart';
 
 class NotificationBadgeWidget extends StatefulWidget {
   final Widget child;
@@ -48,8 +49,12 @@ class _NotificationBadgeWidgetState extends State<NotificationBadgeWidget> {
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: Colors.red,
+                      color: AppColors.errorRed, // Use semantic error color that works with black theme
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.primaryWhite,
+                        width: 1,
+                      ),
                     ),
                     constraints: const BoxConstraints(
                       minWidth: 16,
@@ -58,7 +63,7 @@ class _NotificationBadgeWidgetState extends State<NotificationBadgeWidget> {
                     child: Text(
                       unreadCount > 99 ? '99+' : unreadCount.toString(),
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.primaryWhite,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),

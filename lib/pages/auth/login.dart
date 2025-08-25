@@ -152,7 +152,7 @@ class _LoginPageState extends State<LoginPage> {
                           "Don't have an account?\nSign up here",
                           textAlign: TextAlign.center,
                           style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.accentBlue,
+                            color: AppColors.primaryAccent,
                             fontWeight: AppTypography.medium,
                           ),
                         ),
@@ -193,7 +193,7 @@ class _LoginPageState extends State<LoginPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2,
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'error_handler.dart';
+import '../design_system/app_colors.dart';
 
 /// Enhanced error handling specifically for social features
 class SocialErrorHandler extends ErrorHandler {
@@ -128,7 +129,7 @@ class SocialErrorHandler extends ErrorHandler {
             ),
           ],
         ),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: AppColors.errorRed,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),

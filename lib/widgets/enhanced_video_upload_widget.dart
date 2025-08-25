@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/enhanced_video_upload_service.dart';
 import '../utils/validation_utils.dart';
+import '../design_system/app_colors.dart';
 
 class EnhancedVideoUploadWidget extends StatefulWidget {
   final Function(String videoUrl) onVideoUploaded;
@@ -460,7 +461,7 @@ class _EnhancedVideoUploadWidgetState extends State<EnhancedVideoUploadWidget> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(error),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.errorRed,
       ),
     );
   }

@@ -92,7 +92,7 @@ class AppBars {
 
   /// App bar with accent color theme for special pages
   static AppBarTheme get accentAppBarTheme => appBarTheme.copyWith(
-        backgroundColor: AppColors.accentBlue,
+        backgroundColor: AppColors.primaryAccent,
         foregroundColor: AppColors.primaryWhite,
         iconTheme: const IconThemeData(
           color: AppColors.primaryWhite,
@@ -212,11 +212,11 @@ class AppBars {
       bottom: TabBar(
         controller: controller,
         tabs: tabs,
-        labelColor: AppColors.accentBlue,
+        labelColor: AppColors.primaryAccent,
         unselectedLabelColor: AppColors.textTertiary,
         labelStyle: AppTypography.labelLarge,
         unselectedLabelStyle: AppTypography.labelLarge,
-        indicatorColor: AppColors.accentBlue,
+        indicatorColor: AppColors.primaryAccent,
         indicatorWeight: 2.0,
         dividerColor: AppColors.borderLight,
       ),

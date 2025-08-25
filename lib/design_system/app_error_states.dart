@@ -82,7 +82,7 @@ class AppErrorStates {
             OutlinedButton(
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.accentBlue),
+                side: BorderSide(color: AppColors.primaryAccent),
                 shape: RoundedRectangleBorder(
                   borderRadius: AppSpacing.borderRadiusSm,
                 ),
@@ -90,7 +90,7 @@ class AppErrorStates {
               child: Text(
                 'Try Again',
                 style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.accentBlue,
+                  color: AppColors.primaryAccent,
                 ),
               ),
             ),
@@ -158,7 +158,7 @@ class AppErrorStates {
             OutlinedButton(
               onPressed: onAction,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.accentBlue),
+                side: BorderSide(color: AppColors.primaryAccent),
                 shape: RoundedRectangleBorder(
                   borderRadius: AppSpacing.borderRadiusSm,
                 ),
@@ -166,7 +166,7 @@ class AppErrorStates {
               child: Text(
                 actionLabel,
                 style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.accentBlue,
+                  color: AppColors.primaryAccent,
                 ),
               ),
             ),
@@ -217,7 +217,7 @@ class AppErrorStates {
             ElevatedButton(
               onPressed: onAction,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentBlue,
+                backgroundColor: AppColors.primaryAccent,
                 foregroundColor: AppColors.textOnAccent,
                 shape: RoundedRectangleBorder(
                   borderRadius: AppSpacing.borderRadiusSm,
@@ -288,13 +288,13 @@ class AppErrorStates {
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.accentBlue,
+                foregroundColor: AppColors.primaryAccent,
                 padding: AppSpacing.paddingHorizontalSm,
               ),
               child: Text(
                 actionLabel,
                 style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.accentBlue,
+                  color: AppColors.primaryAccent,
                 ),
               ),
             ),

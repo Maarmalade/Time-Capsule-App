@@ -58,7 +58,7 @@ class AppInputs {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: const BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -86,13 +86,13 @@ class AppInputs {
         
         // Text styles
         labelStyle: labelTextStyle.copyWith(color: AppColors.textSecondary),
-        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.accentBlue),
+        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.primaryAccent),
         hintStyle: inputTextStyle.copyWith(color: AppColors.textTertiary),
         helperStyle: helperTextStyle.copyWith(color: AppColors.textSecondary),
         errorStyle: helperTextStyle.copyWith(color: AppColors.errorRed),
         
         // Colors
-        focusColor: AppColors.accentBlue,
+        focusColor: AppColors.primaryAccent,
         hoverColor: AppColors.hoverOverlay,
         
         // Icon theme
@@ -117,7 +117,7 @@ class AppInputs {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: const BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -136,7 +136,7 @@ class AppInputs {
           ),
         ),
         labelStyle: labelTextStyle.copyWith(color: AppColors.textSecondary),
-        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.accentBlue),
+        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.primaryAccent),
         hintStyle: inputTextStyle.copyWith(color: AppColors.textTertiary),
         helperStyle: helperTextStyle.copyWith(color: AppColors.textSecondary),
         errorStyle: helperTextStyle.copyWith(color: AppColors.errorRed),
@@ -163,7 +163,7 @@ class AppInputs {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: const BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -184,12 +184,12 @@ class AppInputs {
         disabledBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: BorderSide(
-            color: AppColors.borderMedium.withOpacity(0.5),
+            color: AppColors.borderMedium.withValues(alpha: 0.5),
             width: 1.0,
           ),
         ),
         labelStyle: labelTextStyle.copyWith(color: AppColors.textSecondary),
-        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.accentBlue),
+        floatingLabelStyle: labelTextStyle.copyWith(color: AppColors.primaryAccent),
         hintStyle: inputTextStyle.copyWith(color: AppColors.textTertiary),
         helperStyle: helperTextStyle.copyWith(color: AppColors.textSecondary),
         errorStyle: helperTextStyle.copyWith(color: AppColors.errorRed),
@@ -211,7 +211,7 @@ class AppInputs {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           borderSide: const BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -429,6 +429,61 @@ class AppInputs {
       ),
     );
   }
+
+  // Dropdown and Selection Themes
+
+  /// Dropdown Button Theme for black theme integration
+  static ButtonStyle get dropdownButtonStyle => ButtonStyle(
+        textStyle: WidgetStateProperty.all(
+          inputTextStyle.copyWith(color: AppColors.textPrimary),
+        ),
+        foregroundColor: WidgetStateProperty.all(AppColors.textPrimary),
+        backgroundColor: WidgetStateProperty.all(AppColors.surfacePrimary),
+        overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.hovered)) {
+            return AppColors.hoverOverlay;
+          }
+          if (states.contains(WidgetState.pressed)) {
+            return AppColors.pressedOverlay;
+          }
+          return Colors.transparent;
+        }),
+        side: WidgetStateProperty.all(
+          const BorderSide(
+            color: AppColors.borderMedium,
+            width: 1.0,
+          ),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: AppSpacing.inputRadius,
+          ),
+        ),
+      );
+
+  /// Dropdown Menu Theme for black theme integration
+  static MenuThemeData get dropdownMenuTheme => MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStateProperty.all(AppColors.surfacePrimary),
+          elevation: WidgetStateProperty.all(8.0),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: AppSpacing.inputRadius,
+            ),
+          ),
+          side: WidgetStateProperty.all(
+            const BorderSide(
+              color: AppColors.borderLight,
+              width: 1.0,
+            ),
+          ),
+        ),
+      );
+
+  /// Selection colors for text fields and dropdowns
+  static Color get selectionColor => AppColors.primaryAccent.withValues(alpha: 0.3);
+  static Color get cursorColor => AppColors.primaryAccent;
+  static Color get selectionHandleColor => AppColors.primaryAccent;
 
   // Accessibility Helpers
 

@@ -33,17 +33,35 @@ class ContrastChecker {
       AppColors.softGray,
     );
     
-    // Button text combinations
+    // Black theme button combinations
     results['Primary button text'] = _checkContrast(
-      'White text on accent blue button',
+      'White text on black button',
       AppColors.primaryWhite,
-      AppColors.accentBlue,
+      AppColors.primaryAccent,
     );
     
     results['Secondary button text'] = _checkContrast(
-      'Accent blue text on white button',
-      AppColors.accentBlue,
+      'Black text on white button',
+      AppColors.primaryAccent,
       AppColors.primaryWhite,
+    );
+    
+    results['Black hover state'] = _checkContrast(
+      'White text on black hover state',
+      AppColors.primaryWhite,
+      AppColors.blackLight,
+    );
+    
+    results['Black pressed state'] = _checkContrast(
+      'White text on black pressed state',
+      AppColors.primaryWhite,
+      AppColors.blackDark,
+    );
+    
+    results['Black disabled state'] = _checkContrast(
+      'White text on black disabled state',
+      AppColors.primaryWhite,
+      AppColors.blackDisabled,
     );
     
     // Status colors
@@ -65,10 +83,16 @@ class ContrastChecker {
       AppColors.primaryWhite,
     );
     
-    // Navigation elements
+    results['Info text'] = _checkContrast(
+      'Info blue on white background',
+      AppColors.infoBlue,
+      AppColors.primaryWhite,
+    );
+    
+    // Navigation elements with black theme
     results['Active nav item'] = _checkContrast(
-      'Active navigation item (accent blue on white)',
-      AppColors.accentBlue,
+      'Active navigation item (black on white)',
+      AppColors.primaryAccent,
       AppColors.primaryWhite,
     );
     
@@ -76,6 +100,25 @@ class ContrastChecker {
       'Inactive navigation item (dark gray on white)',
       AppColors.darkGray,
       AppColors.primaryWhite,
+    );
+    
+    // Black theme specific combinations
+    results['Black on light gray'] = _checkContrast(
+      'Black accent on light gray background',
+      AppColors.primaryAccent,
+      AppColors.lightGray,
+    );
+    
+    results['Black on soft gray'] = _checkContrast(
+      'Black accent on soft gray background',
+      AppColors.primaryAccent,
+      AppColors.softGray,
+    );
+    
+    results['Text on black overlay'] = _checkContrast(
+      'White text on black overlay',
+      AppColors.primaryWhite,
+      AppColors.hoverOverlay,
     );
     
     return results;
@@ -88,6 +131,110 @@ class ContrastChecker {
     Color background,
   ) {
     return _checkContrast(description, foreground, background);
+  }
+
+  /// Validate black theme specific color combinations
+  static Map<String, ContrastResult> validateBlackThemeContrast() {
+    final results = <String, ContrastResult>{};
+    
+    // Black button states
+    results['Black button normal'] = _checkContrast(
+      'White text on black button (normal state)',
+      AppColors.primaryWhite,
+      AppColors.primaryAccent,
+    );
+    
+    results['Black button hover'] = _checkContrast(
+      'White text on black button (hover state)',
+      AppColors.primaryWhite,
+      AppColors.blackLight,
+    );
+    
+    results['Black button pressed'] = _checkContrast(
+      'White text on black button (pressed state)',
+      AppColors.primaryWhite,
+      AppColors.blackDark,
+    );
+    
+    results['Black button disabled'] = _checkContrast(
+      'White text on black button (disabled state)',
+      AppColors.primaryWhite,
+      AppColors.blackDisabled,
+    );
+    
+    // Black text on various backgrounds
+    results['Black text on white'] = _checkContrast(
+      'Black text on white background',
+      AppColors.primaryAccent,
+      AppColors.primaryWhite,
+    );
+    
+    results['Black text on light gray'] = _checkContrast(
+      'Black text on light gray background',
+      AppColors.primaryAccent,
+      AppColors.lightGray,
+    );
+    
+    results['Black text on soft gray'] = _checkContrast(
+      'Black text on soft gray background',
+      AppColors.primaryAccent,
+      AppColors.softGray,
+    );
+    
+    results['Black text on medium gray'] = _checkContrast(
+      'Black text on medium gray background',
+      AppColors.primaryAccent,
+      AppColors.mediumGray,
+    );
+    
+    // Focus indicators with black theme
+    results['Black focus indicator'] = _checkContrast(
+      'Black focus indicator on white background',
+      AppColors.primaryAccent,
+      AppColors.primaryWhite,
+    );
+    
+    results['White focus on black'] = _checkContrast(
+      'White focus indicator on black background',
+      AppColors.primaryWhite,
+      AppColors.primaryAccent,
+    );
+    
+    return results;
+  }
+
+  /// Get the appropriate text color for black theme backgrounds
+  static Color getAccessibleTextColorForBlackTheme(Color backgroundColor) {
+    final whiteContrast = AccessibilityUtils.calculateContrastRatio(
+      AppColors.primaryWhite,
+      backgroundColor,
+    );
+    final blackContrast = AccessibilityUtils.calculateContrastRatio(
+      AppColors.primaryAccent,
+      backgroundColor,
+    );
+    
+    // Return the color with better contrast, preferring black for light backgrounds
+    if (blackContrast >= AccessibilityUtils.wcagAAContrastRatio) {
+      return AppColors.primaryAccent;
+    } else if (whiteContrast >= AccessibilityUtils.wcagAAContrastRatio) {
+      return AppColors.primaryWhite;
+    } else {
+      // If neither meets AA standards, return the one with better contrast
+      return blackContrast > whiteContrast ? AppColors.primaryAccent : AppColors.primaryWhite;
+    }
+  }
+
+  /// Validate that black theme meets WCAG AA requirements
+  static bool validateBlackThemeCompliance() {
+    final results = validateBlackThemeContrast();
+    return results.values.every((result) => result.meetsWCAGAA);
+  }
+
+  /// Get failing black theme combinations
+  static List<ContrastResult> getFailingBlackThemeCombinations() {
+    final results = validateBlackThemeContrast();
+    return results.values.where((result) => !result.meetsWCAGAA).toList();
   }
 
   /// Internal method to check contrast and create result

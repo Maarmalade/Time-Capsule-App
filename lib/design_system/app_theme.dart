@@ -7,6 +7,8 @@ import 'app_buttons.dart';
 import 'app_inputs.dart';
 import 'app_bars.dart';
 import 'app_navigation.dart';
+import '../utils/black_theme_accessibility.dart';
+import '../utils/accessibility_theme_validator.dart';
 
 /// AppTheme provides the comprehensive theme configuration for the Time Capsule app
 /// combining all design system components into a cohesive Material 3 theme
@@ -16,20 +18,40 @@ class AppTheme {
 
   /// Main light theme configuration for the Time Capsule app
   static ThemeData get lightTheme {
-    return ThemeData(
+    final theme = ThemeData(
       // Material 3 configuration
       useMaterial3: true,
       
-      // Color scheme configuration with custom palette
+      // Color scheme configuration with black primary color
       colorScheme: ColorScheme.light(
-        primary: AppColors.accentBlue,
-        onPrimary: AppColors.primaryWhite,
+        primary: AppColors.primaryAccent, // Black primary color
+        onPrimary: AppColors.primaryWhite, // White text on black
+        primaryContainer: AppColors.blackLight, // Light black for containers
+        onPrimaryContainer: AppColors.primaryWhite, // White text on light black
         secondary: AppColors.textGray,
         onSecondary: AppColors.primaryWhite,
+        secondaryContainer: AppColors.surfaceSecondary,
+        onSecondaryContainer: AppColors.textPrimary,
+        tertiary: AppColors.darkGray,
+        onTertiary: AppColors.primaryWhite,
+        tertiaryContainer: AppColors.mediumGray,
+        onTertiaryContainer: AppColors.textPrimary,
         surface: AppColors.surfacePrimary,
         onSurface: AppColors.textPrimary,
+        surfaceContainerHighest: AppColors.surfaceSecondary,
+        onSurfaceVariant: AppColors.textSecondary,
+        outline: AppColors.borderMedium,
+        outlineVariant: AppColors.borderLight,
+        shadow: AppColors.shadowMedium,
+        scrim: AppColors.shadowDark,
+        inverseSurface: AppColors.charcoalNavy,
+        onInverseSurface: AppColors.primaryWhite,
+        inversePrimary: AppColors.primaryWhite,
         error: AppColors.errorRed,
         onError: AppColors.primaryWhite,
+        errorContainer: AppColors.errorRedLight,
+        onErrorContainer: AppColors.errorRedDark,
+        brightness: Brightness.light,
       ),
       
       // Typography configuration with Inter/Roboto fonts
@@ -37,7 +59,7 @@ class AppTheme {
       textTheme: AppTypography.textTheme,
       
       // Primary color for legacy Material components
-      primaryColor: AppColors.accentBlue,
+      primaryColor: AppColors.primaryAccent,
       
       // Surface and background colors
       scaffoldBackgroundColor: AppColors.surfacePrimary,
@@ -77,7 +99,7 @@ class AppTheme {
       navigationRailTheme: AppNavigation.navigationRailTheme,
       drawerTheme: AppNavigation.drawerTheme,
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.accentBlue,
+        labelColor: AppColors.primaryAccent,
         unselectedLabelColor: AppColors.textTertiary,
         labelStyle: AppTypography.labelLarge.copyWith(
           fontWeight: AppTypography.medium,
@@ -87,7 +109,7 @@ class AppTheme {
         ),
         indicator: const UnderlineTabIndicator(
           borderSide: BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -119,7 +141,7 @@ class AppTheme {
       // Chip theme
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceSecondary,
-        selectedColor: AppColors.accentBlue.withValues(alpha: 0.12),
+        selectedColor: AppColors.primaryAccent.withValues(alpha: 0.12),
         disabledColor: AppColors.surfaceSecondary.withValues(alpha: 0.38),
         deleteIconColor: AppColors.textSecondary,
         labelStyle: AppTypography.labelMedium.copyWith(
@@ -155,13 +177,13 @@ class AppTheme {
         ),
       ),
       
-      // Snackbar theme
+      // Snackbar theme with black accent
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.charcoalNavy,
         contentTextStyle: AppTypography.bodyMedium.copyWith(
           color: AppColors.primaryWhite,
         ),
-        actionTextColor: AppColors.accentBlue,
+        actionTextColor: AppColors.primaryWhite, // White action text for better contrast on dark background
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         ),
@@ -171,61 +193,105 @@ class AppTheme {
       
       // Progress indicator theme
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         linearTrackColor: AppColors.surfaceSecondary,
         circularTrackColor: AppColors.surfaceSecondary,
       ),
       
-      // Switch theme
+      // Switch theme with accessibility considerations
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.blackDisabled;
+          }
           if (states.contains(WidgetState.selected)) {
-            return AppColors.accentBlue;
+            return AppColors.primaryAccent;
           }
           return AppColors.surfaceSecondary;
         }),
         trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.borderLight;
+          }
           if (states.contains(WidgetState.selected)) {
-            return AppColors.accentBlue.withValues(alpha: 0.5);
+            return AppColors.primaryAccent.withValues(alpha: 0.5);
           }
           return AppColors.borderMedium;
         }),
-      ),
-      
-      // Checkbox theme
-      checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppColors.accentBlue;
+        overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.focused)) {
+            return AppColors.primaryAccent.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return AppColors.hoverOverlay;
           }
           return Colors.transparent;
         }),
-        checkColor: WidgetStateProperty.all(AppColors.primaryWhite),
+      ),
+      
+      // Checkbox theme with accessibility considerations
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.blackDisabled;
+          }
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primaryAccent;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.primaryWhite.withValues(alpha: 0.38);
+          }
+          return AppColors.primaryWhite;
+        }),
         side: const BorderSide(
           color: AppColors.borderMedium,
           width: 2.0,
         ),
+        overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.focused)) {
+            return AppColors.primaryAccent.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return AppColors.hoverOverlay;
+          }
+          return Colors.transparent;
+        }),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
         ),
       ),
       
-      // Radio theme
+      // Radio theme with accessibility considerations
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.blackDisabled;
+          }
           if (states.contains(WidgetState.selected)) {
-            return AppColors.accentBlue;
+            return AppColors.primaryAccent;
           }
           return AppColors.borderMedium;
+        }),
+        overlayColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.focused)) {
+            return AppColors.primaryAccent.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return AppColors.hoverOverlay;
+          }
+          return Colors.transparent;
         }),
       ),
       
       // Slider theme
       sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.accentBlue,
+        activeTrackColor: AppColors.primaryAccent,
         inactiveTrackColor: AppColors.surfaceSecondary,
-        thumbColor: AppColors.accentBlue,
-        overlayColor: AppColors.accentBlue.withValues(alpha: 0.12),
+        thumbColor: AppColors.primaryAccent,
+        overlayColor: AppColors.primaryAccent.withValues(alpha: 0.12),
         valueIndicatorColor: AppColors.charcoalNavy,
         valueIndicatorTextStyle: AppTypography.labelMedium.copyWith(
           color: AppColors.primaryWhite,
@@ -263,8 +329,14 @@ class AppTheme {
       ),
       
       // Menu theme
-      menuTheme: MenuThemeData(
-        style: MenuStyle(
+      menuTheme: AppInputs.dropdownMenuTheme,
+      
+      // Dropdown button theme
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textPrimary,
+        ),
+        menuStyle: MenuStyle(
           backgroundColor: WidgetStateProperty.all(AppColors.surfacePrimary),
           elevation: WidgetStateProperty.all(AppSpacing.elevation3),
           shape: WidgetStateProperty.all(
@@ -272,7 +344,14 @@ class AppTheme {
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
           ),
+          side: WidgetStateProperty.all(
+            const BorderSide(
+              color: AppColors.borderLight,
+              width: 1.0,
+            ),
+          ),
         ),
+        inputDecorationTheme: AppInputs.inputDecorationTheme,
       ),
       
       // Bottom sheet theme
@@ -322,11 +401,11 @@ class AppTheme {
       ),
       
       // Splash color for ripple effects
-      splashColor: AppColors.accentBlue.withValues(alpha: 0.12),
-      highlightColor: AppColors.accentBlue.withValues(alpha: 0.08),
+      splashColor: AppColors.primaryAccent.withValues(alpha: 0.12),
+      highlightColor: AppColors.primaryAccent.withValues(alpha: 0.08),
       
-      // Focus color
-      focusColor: AppColors.accentBlue.withValues(alpha: 0.12),
+      // Focus color with accessibility considerations
+      focusColor: AppColors.primaryAccent.withValues(alpha: 0.12),
       hoverColor: AppColors.hoverOverlay,
       
       // Disabled color
@@ -340,20 +419,31 @@ class AppTheme {
       
       // Text selection theme
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: AppColors.accentBlue,
-        selectionColor: AppColors.accentBlue.withValues(alpha: 0.3),
-        selectionHandleColor: AppColors.accentBlue,
+        cursorColor: AppColors.primaryAccent,
+        selectionColor: AppColors.primaryAccent.withValues(alpha: 0.3),
+        selectionHandleColor: AppColors.primaryAccent,
       ),
       
-      // Extensions for Material 3
+      // Extensions for Material 3 with black theme integration
       extensions: <ThemeExtension<dynamic>>[
         AppThemeExtension(
           successColor: AppColors.successGreen,
           warningColor: AppColors.warningAmber,
           infoColor: AppColors.infoBlue,
+          successBackgroundColor: AppColors.successGreenLight,
+          warningBackgroundColor: AppColors.warningAmberLight,
+          infoBackgroundColor: AppColors.infoBlueLight,
+          successTextColor: AppColors.successGreenDark,
+          warningTextColor: AppColors.warningAmberDark,
+          infoTextColor: AppColors.infoBlueDark,
         ),
       ],
     );
+    
+    // Validate theme accessibility in debug mode
+    AccessibilityThemeValidator.validateAndLog(theme);
+    
+    return theme;
   }
 
   /// Dark theme configuration (placeholder for future implementation)
@@ -368,27 +458,27 @@ class AppTheme {
 
 
 
-  /// System UI overlay style for light theme
+  /// System UI overlay style for light theme with black accent integration
   static SystemUiOverlayStyle get lightSystemUiOverlayStyle {
     return const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.dark, // Dark icons on light status bar
       statusBarBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.surfacePrimary,
-      systemNavigationBarIconBrightness: Brightness.dark,
-      systemNavigationBarDividerColor: AppColors.borderLight,
+      systemNavigationBarColor: AppColors.surfacePrimary, // White navigation bar
+      systemNavigationBarIconBrightness: Brightness.dark, // Dark icons on white nav bar
+      systemNavigationBarDividerColor: AppColors.borderLight, // Light border for subtle separation
     );
   }
 
-  /// System UI overlay style for dark theme
+  /// System UI overlay style for dark theme with black accent integration
   static SystemUiOverlayStyle get darkSystemUiOverlayStyle {
     return const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light, // Light icons on dark status bar
       statusBarBrightness: Brightness.dark,
-      systemNavigationBarColor: AppColors.charcoalNavy,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarDividerColor: AppColors.borderDark,
+      systemNavigationBarColor: AppColors.charcoalNavy, // Dark navigation bar
+      systemNavigationBarIconBrightness: Brightness.light, // Light icons on dark nav bar
+      systemNavigationBarDividerColor: AppColors.borderDark, // Dark border for separation
     );
   }
 
@@ -397,6 +487,12 @@ class AppTheme {
     SystemChrome.setSystemUIOverlayStyle(
       isDark ? darkSystemUiOverlayStyle : lightSystemUiOverlayStyle,
     );
+  }
+
+  /// Applies system UI overlay style optimized for black theme
+  static void setBlackThemeSystemUIOverlayStyle({bool isDark = false}) {
+    final style = isDark ? darkSystemUiOverlayStyle : lightSystemUiOverlayStyle;
+    SystemChrome.setSystemUIOverlayStyle(style);
   }
 
   /// Helper method to get the current theme mode
@@ -437,6 +533,31 @@ class AppTheme {
       darkColor: AppColors.charcoalNavy,
     );
   }
+
+  /// Get accessible text color for a given background color
+  static Color getAccessibleTextColor(Color backgroundColor) {
+    return BlackThemeAccessibility.getBestTextColorForBackground(backgroundColor);
+  }
+
+  /// Get accessible focus indicator color for a given background
+  static Color getAccessibleFocusColor(Color backgroundColor) {
+    return BlackThemeAccessibility.getFocusIndicatorColor(backgroundColor);
+  }
+
+  /// Validate that the current theme meets accessibility standards
+  static bool validateThemeAccessibility() {
+    return BlackThemeAccessibility.validateBlackTheme().isCompliant;
+  }
+
+  /// Get fallback colors for insufficient contrast scenarios
+  static Map<String, Color> getAccessibilityFallbackColors() {
+    return BlackThemeAccessibility.getFallbackColors();
+  }
+
+  /// Generate accessibility report for the current theme
+  static String generateAccessibilityReport() {
+    return BlackThemeAccessibility.generateBlackThemeAccessibilityReport();
+  }
 }
 
 /// Custom theme extension for additional colors not covered by Material 3
@@ -444,11 +565,23 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   final Color successColor;
   final Color warningColor;
   final Color infoColor;
+  final Color successBackgroundColor;
+  final Color warningBackgroundColor;
+  final Color infoBackgroundColor;
+  final Color successTextColor;
+  final Color warningTextColor;
+  final Color infoTextColor;
 
   const AppThemeExtension({
     required this.successColor,
     required this.warningColor,
     required this.infoColor,
+    required this.successBackgroundColor,
+    required this.warningBackgroundColor,
+    required this.infoBackgroundColor,
+    required this.successTextColor,
+    required this.warningTextColor,
+    required this.infoTextColor,
   });
 
   @override
@@ -456,11 +589,23 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
     Color? successColor,
     Color? warningColor,
     Color? infoColor,
+    Color? successBackgroundColor,
+    Color? warningBackgroundColor,
+    Color? infoBackgroundColor,
+    Color? successTextColor,
+    Color? warningTextColor,
+    Color? infoTextColor,
   }) {
     return AppThemeExtension(
       successColor: successColor ?? this.successColor,
       warningColor: warningColor ?? this.warningColor,
       infoColor: infoColor ?? this.infoColor,
+      successBackgroundColor: successBackgroundColor ?? this.successBackgroundColor,
+      warningBackgroundColor: warningBackgroundColor ?? this.warningBackgroundColor,
+      infoBackgroundColor: infoBackgroundColor ?? this.infoBackgroundColor,
+      successTextColor: successTextColor ?? this.successTextColor,
+      warningTextColor: warningTextColor ?? this.warningTextColor,
+      infoTextColor: infoTextColor ?? this.infoTextColor,
     );
   }
 
@@ -473,6 +618,12 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
       successColor: Color.lerp(successColor, other.successColor, t)!,
       warningColor: Color.lerp(warningColor, other.warningColor, t)!,
       infoColor: Color.lerp(infoColor, other.infoColor, t)!,
+      successBackgroundColor: Color.lerp(successBackgroundColor, other.successBackgroundColor, t)!,
+      warningBackgroundColor: Color.lerp(warningBackgroundColor, other.warningBackgroundColor, t)!,
+      infoBackgroundColor: Color.lerp(infoBackgroundColor, other.infoBackgroundColor, t)!,
+      successTextColor: Color.lerp(successTextColor, other.successTextColor, t)!,
+      warningTextColor: Color.lerp(warningTextColor, other.warningTextColor, t)!,
+      infoTextColor: Color.lerp(infoTextColor, other.infoTextColor, t)!,
     );
   }
 }

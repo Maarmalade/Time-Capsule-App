@@ -70,7 +70,7 @@ class AppImages {
   static const Color loadingBackground = AppColors.softGray;
   
   /// Color for loading indicators
-  static const Color loadingIndicatorColor = AppColors.accentBlue;
+  static const Color loadingIndicatorColor = AppColors.primaryAccent;
 
   // Border Radius Utilities
   /// Creates small border radius for compact images
@@ -435,7 +435,7 @@ class AppImages {
               child: const Text(
                 'Retry',
                 style: TextStyle(
-                  color: AppColors.accentBlue,
+                  color: AppColors.primaryAccent,
                   fontSize: 12.0,
                 ),
               ),

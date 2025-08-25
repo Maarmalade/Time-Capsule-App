@@ -200,7 +200,7 @@ class _RegisterPageState extends State<RegisterPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2,
           ),
         ),

@@ -75,7 +75,7 @@ class ResponsiveNavigation extends StatelessWidget {
       backgroundColor: backgroundColor ?? AppColors.surfacePrimary,
       elevation: AppSpacing.elevation1,
       selectedIconTheme: IconThemeData(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         size: AppResponsive.getResponsiveIconSize(screenWidth),
       ),
       unselectedIconTheme: IconThemeData(
@@ -83,7 +83,7 @@ class ResponsiveNavigation extends StatelessWidget {
         size: AppResponsive.getResponsiveIconSize(screenWidth),
       ),
       selectedLabelTextStyle: AppTypography.labelMedium.copyWith(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         fontWeight: AppTypography.medium,
         fontSize: AppResponsive.getResponsiveFontSize(screenWidth, 14),
       ),
@@ -95,7 +95,7 @@ class ResponsiveNavigation extends StatelessWidget {
       groupAlignment: -1.0,
       labelType: showLabels ? NavigationRailLabelType.all : NavigationRailLabelType.none,
       useIndicator: true,
-      indicatorColor: AppColors.accentBlue.withValues(alpha: 0.12),
+      indicatorColor: AppColors.primaryAccent.withValues(alpha: 0.12),
       minWidth: AppResponsive.getResponsiveSpacing(screenWidth) * 4,
       minExtendedWidth: AppResponsive.getResponsiveSpacing(screenWidth) * 12,
     );
@@ -131,10 +131,10 @@ class ResponsiveNavigation extends StatelessWidget {
         items: bottomNavItems,
         type: extended ? BottomNavigationBarType.fixed : BottomNavigationBarType.shifting,
         backgroundColor: backgroundColor ?? AppColors.surfacePrimary,
-        selectedItemColor: AppColors.accentBlue,
+        selectedItemColor: AppColors.primaryAccent,
         unselectedItemColor: AppColors.textTertiary,
         selectedLabelStyle: AppTypography.labelMedium.copyWith(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           fontWeight: AppTypography.medium,
           fontSize: fontSize,
         ),
@@ -149,7 +149,7 @@ class ResponsiveNavigation extends StatelessWidget {
         showUnselectedLabels: showLabels && extended,
         selectedIconTheme: IconThemeData(
           size: iconSize,
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
         ),
         unselectedIconTheme: IconThemeData(
           size: iconSize,
@@ -344,13 +344,13 @@ class ResponsiveDrawerListTile extends StatelessWidget {
         return ListTile(
           leading: Icon(
             icon,
-            color: selected ? AppColors.accentBlue : AppColors.textTertiary,
+            color: selected ? AppColors.primaryAccent : AppColors.textTertiary,
             size: responsiveIconSize,
           ),
           title: Text(
             title,
             style: AppTypography.bodyMedium.copyWith(
-              color: selected ? AppColors.accentBlue : AppColors.textPrimary,
+              color: selected ? AppColors.primaryAccent : AppColors.textPrimary,
               fontWeight: selected ? AppTypography.medium : AppTypography.regular,
               fontSize: responsiveFontSize,
             ),
@@ -366,7 +366,7 @@ class ResponsiveDrawerListTile extends StatelessWidget {
               : null,
           onTap: onTap,
           selected: selected,
-          selectedTileColor: AppColors.accentBlue.withValues(alpha: 0.08),
+          selectedTileColor: AppColors.primaryAccent.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
             borderRadius: AppResponsive.getResponsiveBorderRadius(screenWidth),
           ),
@@ -407,7 +407,7 @@ class ResponsiveTabBar extends StatelessWidget implements PreferredSizeWidget {
           tabs: tabs,
           isScrollable: shouldBeScrollable,
           onTap: onTap,
-          labelColor: AppColors.accentBlue,
+          labelColor: AppColors.primaryAccent,
           unselectedLabelColor: AppColors.textTertiary,
           labelStyle: AppTypography.labelLarge.copyWith(
             fontWeight: AppTypography.medium,
@@ -419,7 +419,7 @@ class ResponsiveTabBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           indicator: const UnderlineTabIndicator(
             borderSide: BorderSide(
-              color: AppColors.accentBlue,
+              color: AppColors.primaryAccent,
               width: 2.0,
             ),
           ),
@@ -428,10 +428,10 @@ class ResponsiveTabBar extends StatelessWidget implements PreferredSizeWidget {
           overlayColor: WidgetStateProperty.resolveWith<Color?>(
             (Set<WidgetState> states) {
               if (states.contains(WidgetState.hovered)) {
-                return AppColors.accentBlue.withValues(alpha: 0.04);
+                return AppColors.primaryAccent.withValues(alpha: 0.04);
               }
               if (states.contains(WidgetState.pressed)) {
-                return AppColors.accentBlue.withValues(alpha: 0.08);
+                return AppColors.primaryAccent.withValues(alpha: 0.08);
               }
               return null;
             },

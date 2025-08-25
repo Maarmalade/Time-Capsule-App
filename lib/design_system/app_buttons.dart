@@ -28,7 +28,7 @@ class AppButtons {
 
   /// Primary Button Style - Main call-to-action buttons
   static ButtonStyle get primaryButtonStyle => ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accentBlue,
+        backgroundColor: AppColors.primaryAccent,
         foregroundColor: AppColors.textOnAccent,
         elevation: AppSpacing.elevation2,
         shadowColor: AppColors.shadowMedium,
@@ -43,15 +43,15 @@ class AppButtons {
         // Hover state
         backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.accentBlue.withOpacity(0.38);
+            return AppColors.blackDisabled;
           }
           if (states.contains(WidgetState.pressed)) {
-            return _darkenColor(AppColors.accentBlue, 0.12);
+            return AppColors.blackDark;
           }
           if (states.contains(WidgetState.hovered)) {
-            return _darkenColor(AppColors.accentBlue, 0.08);
+            return AppColors.blackLight;
           }
-          return AppColors.accentBlue;
+          return AppColors.primaryAccent;
         }),
         // Elevation states
         elevation: WidgetStateProperty.resolveWith<double>((states) {
@@ -75,9 +75,9 @@ class AppButtons {
   /// Secondary Button Style - Alternative actions
   static ButtonStyle get secondaryButtonStyle => OutlinedButton.styleFrom(
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.accentBlue,
+        foregroundColor: AppColors.primaryAccent,
         side: const BorderSide(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           width: 1.5,
         ),
         shape: RoundedRectangleBorder(
@@ -93,36 +93,36 @@ class AppButtons {
             return Colors.transparent;
           }
           if (states.contains(WidgetState.pressed)) {
-            return AppColors.accentBlue.withOpacity(0.12);
+            return AppColors.pressedOverlay;
           }
           if (states.contains(WidgetState.hovered)) {
-            return AppColors.accentBlue.withOpacity(0.08);
+            return AppColors.hoverOverlay;
           }
           return Colors.transparent;
         }),
         // Foreground color states
         foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.accentBlue.withOpacity(0.38);
+            return AppColors.blackDisabled;
           }
-          return AppColors.accentBlue;
+          return AppColors.primaryAccent;
         }),
         // Border color states
         side: WidgetStateProperty.resolveWith<BorderSide>((states) {
           if (states.contains(WidgetState.disabled)) {
             return BorderSide(
-              color: AppColors.accentBlue.withOpacity(0.38),
+              color: AppColors.blackDisabled,
               width: 1.5,
             );
           }
           if (states.contains(WidgetState.pressed)) {
             return const BorderSide(
-              color: AppColors.accentBlue,
+              color: AppColors.primaryAccent,
               width: 2.0,
             );
           }
           return const BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 1.5,
           );
         }),
@@ -131,7 +131,7 @@ class AppButtons {
   /// Text Button Style - Subtle actions and links
   static ButtonStyle get textButtonStyle => TextButton.styleFrom(
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.accentBlue,
+        foregroundColor: AppColors.primaryAccent,
         shape: RoundedRectangleBorder(
           borderRadius: AppSpacing.buttonRadius,
         ),
@@ -142,19 +142,19 @@ class AppButtons {
         // Background color states
         backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.pressed)) {
-            return AppColors.accentBlue.withOpacity(0.12);
+            return AppColors.pressedOverlay;
           }
           if (states.contains(WidgetState.hovered)) {
-            return AppColors.accentBlue.withOpacity(0.08);
+            return AppColors.hoverOverlay;
           }
           return Colors.transparent;
         }),
         // Foreground color states
         foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.accentBlue.withOpacity(0.38);
+            return AppColors.blackDisabled;
           }
-          return AppColors.accentBlue;
+          return AppColors.primaryAccent;
         }),
       );
 
@@ -173,7 +173,7 @@ class AppButtons {
       ).copyWith(
         backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.errorRed.withOpacity(0.38);
+            return AppColors.blackDisabled;
           }
           if (states.contains(WidgetState.pressed)) {
             return _darkenColor(AppColors.errorRed, 0.12);
@@ -194,7 +194,7 @@ class AppButtons {
   /// Icon Button Style - For icon-only buttons
   static ButtonStyle get iconButtonStyle => IconButton.styleFrom(
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: AppColors.primaryAccent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         ),
@@ -211,15 +211,15 @@ class AppButtons {
         }),
         foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.textPrimary.withOpacity(0.38);
+            return AppColors.blackDisabled;
           }
-          return AppColors.textPrimary;
+          return AppColors.primaryAccent;
         }),
       );
 
   /// Floating Action Button Style
   static ButtonStyle get fabStyle => ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accentBlue,
+        backgroundColor: AppColors.primaryAccent,
         foregroundColor: AppColors.textOnAccent,
         elevation: AppSpacing.elevation3,
         shape: RoundedRectangleBorder(
@@ -229,15 +229,19 @@ class AppButtons {
         minimumSize: const Size(56.0, 56.0),
       ).copyWith(
         backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.blackDisabled;
+          }
           if (states.contains(WidgetState.pressed)) {
-            return _darkenColor(AppColors.accentBlue, 0.12);
+            return AppColors.blackDark;
           }
           if (states.contains(WidgetState.hovered)) {
-            return _darkenColor(AppColors.accentBlue, 0.08);
+            return AppColors.blackLight;
           }
-          return AppColors.accentBlue;
+          return AppColors.primaryAccent;
         }),
         elevation: WidgetStateProperty.resolveWith<double>((states) {
+          if (states.contains(WidgetState.disabled)) return 0;
           if (states.contains(WidgetState.pressed)) return AppSpacing.elevation2;
           if (states.contains(WidgetState.hovered)) return AppSpacing.elevation4;
           return AppSpacing.elevation3;
@@ -349,12 +353,7 @@ class AppButtons {
     return darkened.toColor();
   }
 
-  /// Lightens a color by the specified amount (0.0 to 1.0)
-  static Color _lightenColor(Color color, double amount) {
-    final hsl = HSLColor.fromColor(color);
-    final lightened = hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0));
-    return lightened.toColor();
-  }
+
 
   // Theme Integration
 
@@ -381,7 +380,7 @@ class AppButtons {
   /// FloatingActionButtonThemeData for Material theme
   static FloatingActionButtonThemeData get floatingActionButtonTheme => 
       FloatingActionButtonThemeData(
-        backgroundColor: AppColors.accentBlue,
+        backgroundColor: AppColors.primaryAccent,
         foregroundColor: AppColors.textOnAccent,
         elevation: AppSpacing.elevation3,
         shape: RoundedRectangleBorder(

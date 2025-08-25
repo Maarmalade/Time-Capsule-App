@@ -19,13 +19,13 @@ class AppNavigation {
         type: BottomNavigationBarType.fixed,
         
         // Selected item styling
-        selectedItemColor: AppColors.accentBlue,
+        selectedItemColor: AppColors.primaryAccent,
         selectedLabelStyle: AppTypography.labelMedium.copyWith(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           fontWeight: AppTypography.medium,
         ),
         selectedIconTheme: const IconThemeData(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           size: AppSpacing.iconSize,
         ),
         
@@ -56,11 +56,11 @@ class AppNavigation {
         
         // Selected destination styling
         selectedIconTheme: const IconThemeData(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           size: AppSpacing.iconSize,
         ),
         selectedLabelTextStyle: AppTypography.labelMedium.copyWith(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           fontWeight: AppTypography.medium,
         ),
         
@@ -78,7 +78,7 @@ class AppNavigation {
         groupAlignment: -1.0, // Align to top
         labelType: NavigationRailLabelType.all,
         useIndicator: true,
-        indicatorColor: AppColors.accentBlue.withOpacity(0.12),
+        indicatorColor: AppColors.primaryAccent.withValues(alpha: 0.12),
       );
 
   /// Navigation drawer theme for menu navigation
@@ -96,7 +96,7 @@ class AppNavigation {
 
   /// Tab bar theme for tabbed navigation
   static TabBarTheme get tabBarTheme => TabBarTheme(
-        labelColor: AppColors.accentBlue,
+        labelColor: AppColors.primaryAccent,
         unselectedLabelColor: AppColors.textTertiary,
         labelStyle: AppTypography.labelLarge.copyWith(
           fontWeight: AppTypography.medium,
@@ -106,7 +106,7 @@ class AppNavigation {
         ),
         indicator: const UnderlineTabIndicator(
           borderSide: BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2.0,
           ),
         ),
@@ -115,10 +115,10 @@ class AppNavigation {
         overlayColor: WidgetStateProperty.resolveWith<Color?>(
           (Set<WidgetState> states) {
             if (states.contains(WidgetState.hovered)) {
-              return AppColors.accentBlue.withOpacity(0.04);
+              return AppColors.primaryAccent.withValues(alpha: 0.04);
             }
             if (states.contains(WidgetState.pressed)) {
-              return AppColors.accentBlue.withOpacity(0.08);
+              return AppColors.primaryAccent.withValues(alpha: 0.08);
             }
             return null;
           },
@@ -137,10 +137,10 @@ class AppNavigation {
       items: items,
       type: BottomNavigationBarType.fixed,
       backgroundColor: AppColors.surfacePrimary,
-      selectedItemColor: AppColors.accentBlue,
+      selectedItemColor: AppColors.primaryAccent,
       unselectedItemColor: AppColors.textTertiary,
       selectedLabelStyle: AppTypography.labelMedium.copyWith(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         fontWeight: AppTypography.medium,
       ),
       unselectedLabelStyle: AppTypography.labelMedium.copyWith(
@@ -171,7 +171,7 @@ class AppNavigation {
       backgroundColor: AppColors.surfacePrimary,
       elevation: AppSpacing.elevation1,
       selectedIconTheme: const IconThemeData(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         size: AppSpacing.iconSize,
       ),
       unselectedIconTheme: const IconThemeData(
@@ -179,7 +179,7 @@ class AppNavigation {
         size: AppSpacing.iconSize,
       ),
       selectedLabelTextStyle: AppTypography.labelMedium.copyWith(
-        color: AppColors.accentBlue,
+        color: AppColors.primaryAccent,
         fontWeight: AppTypography.medium,
       ),
       unselectedLabelTextStyle: AppTypography.labelMedium.copyWith(
@@ -189,7 +189,7 @@ class AppNavigation {
       groupAlignment: -1.0,
       labelType: NavigationRailLabelType.all,
       useIndicator: true,
-      indicatorColor: AppColors.accentBlue.withOpacity(0.12),
+      indicatorColor: AppColors.primaryAccent.withValues(alpha: 0.12),
     );
   }
 
@@ -233,13 +233,13 @@ class AppNavigation {
     return ListTile(
       leading: Icon(
         icon,
-        color: selected ? AppColors.accentBlue : AppColors.textTertiary,
+        color: selected ? AppColors.primaryAccent : AppColors.textTertiary,
         size: AppSpacing.iconSize,
       ),
       title: Text(
         title,
         style: AppTypography.bodyMedium.copyWith(
-          color: selected ? AppColors.accentBlue : AppColors.textPrimary,
+          color: selected ? AppColors.primaryAccent : AppColors.textPrimary,
           fontWeight: selected ? AppTypography.medium : AppTypography.regular,
         ),
       ),
@@ -253,7 +253,7 @@ class AppNavigation {
           : null,
       onTap: onTap,
       selected: selected,
-      selectedTileColor: AppColors.accentBlue.withOpacity(0.08),
+      selectedTileColor: AppColors.primaryAccent.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
@@ -276,7 +276,7 @@ class AppNavigation {
       controller: controller,
       tabs: tabs,
       isScrollable: isScrollable,
-      labelColor: AppColors.accentBlue,
+      labelColor: AppColors.primaryAccent,
       unselectedLabelColor: AppColors.textTertiary,
       labelStyle: AppTypography.labelLarge.copyWith(
         fontWeight: AppTypography.medium,
@@ -286,7 +286,7 @@ class AppNavigation {
       ),
       indicator: const UnderlineTabIndicator(
         borderSide: BorderSide(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           width: 2.0,
         ),
       ),
@@ -295,10 +295,10 @@ class AppNavigation {
       overlayColor: WidgetStateProperty.resolveWith<Color?>(
         (Set<WidgetState> states) {
           if (states.contains(WidgetState.hovered)) {
-            return AppColors.accentBlue.withOpacity(0.04);
+            return AppColors.primaryAccent.withValues(alpha: 0.04);
           }
           if (states.contains(WidgetState.pressed)) {
-            return AppColors.accentBlue.withOpacity(0.08);
+            return AppColors.primaryAccent.withValues(alpha: 0.08);
           }
           return null;
         },

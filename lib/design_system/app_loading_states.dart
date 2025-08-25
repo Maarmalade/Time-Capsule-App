@@ -21,7 +21,7 @@ class AppLoadingStates {
       child: CircularProgressIndicator(
         strokeWidth: strokeWidth ?? 2.5,
         valueColor: AlwaysStoppedAnimation<Color>(
-          color ?? AppColors.accentBlue,
+          color ?? AppColors.primaryAccent,
         ),
       ),
     );
@@ -40,7 +40,7 @@ class AppLoadingStates {
         value: value,
         backgroundColor: backgroundColor ?? AppColors.lightGray,
         valueColor: AlwaysStoppedAnimation<Color>(
-          valueColor ?? AppColors.accentBlue,
+          valueColor ?? AppColors.primaryAccent,
         ),
       ),
     );
@@ -62,9 +62,9 @@ class AppLoadingStates {
           ? ElevatedButton(
               onPressed: isLoading ? null : onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentBlue,
+                backgroundColor: AppColors.primaryAccent,
                 foregroundColor: AppColors.textOnAccent,
-                disabledBackgroundColor: AppColors.accentBlue,
+                disabledBackgroundColor: AppColors.primaryAccent,
                 disabledForegroundColor: AppColors.textOnAccent,
                 shape: RoundedRectangleBorder(
                   borderRadius: AppSpacing.borderRadiusSm,
@@ -101,7 +101,7 @@ class AppLoadingStates {
               onPressed: isLoading ? null : onPressed,
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: isLoading ? AppColors.mediumGray : AppColors.accentBlue,
+                  color: isLoading ? AppColors.mediumGray : AppColors.primaryAccent,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: AppSpacing.borderRadiusSm,
@@ -117,7 +117,7 @@ class AppLoadingStates {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.accentBlue,
+                              AppColors.primaryAccent,
                             ),
                           ),
                         ),
@@ -125,7 +125,7 @@ class AppLoadingStates {
                         Text(
                           'Loading...',
                           style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.accentBlue,
+                            color: AppColors.primaryAccent,
                           ),
                         ),
                       ],
@@ -133,7 +133,7 @@ class AppLoadingStates {
                   : Text(
                       text,
                       style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.accentBlue,
+                        color: AppColors.primaryAccent,
                       ),
                     ),
             ),
@@ -346,7 +346,7 @@ class AppLoadingStates {
   }) {
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: color ?? AppColors.accentBlue,
+      color: color ?? AppColors.primaryAccent,
       backgroundColor: AppColors.surfacePrimary,
       child: child,
     );

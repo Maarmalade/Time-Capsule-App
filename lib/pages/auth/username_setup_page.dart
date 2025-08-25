@@ -288,7 +288,7 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: AppSpacing.inputRadius,
           borderSide: BorderSide(
-            color: AppColors.accentBlue,
+            color: AppColors.primaryAccent,
             width: 2,
           ),
         ),
@@ -309,7 +309,7 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.accentBlue,
+                      AppColors.primaryAccent,
                     ),
                   ),
                 ),

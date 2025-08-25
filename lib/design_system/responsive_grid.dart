@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'app_responsive.dart';
-import 'app_spacing.dart';
 
 /// ResponsiveGrid provides adaptive grid layouts that automatically
 /// adjust column counts and spacing based on screen size

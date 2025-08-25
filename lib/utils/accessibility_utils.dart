@@ -34,9 +34,9 @@ class AccessibilityUtils {
 
   /// Calculate relative luminance of a color
   static double _calculateLuminance(Color color) {
-    final r = _linearizeColorComponent(color.red / 255.0);
-    final g = _linearizeColorComponent(color.green / 255.0);
-    final b = _linearizeColorComponent(color.blue / 255.0);
+    final r = _linearizeColorComponent((color.r * 255.0).round() / 255.0);
+    final g = _linearizeColorComponent((color.g * 255.0).round() / 255.0);
+    final b = _linearizeColorComponent((color.b * 255.0).round() / 255.0);
     
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }

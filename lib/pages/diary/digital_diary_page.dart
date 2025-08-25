@@ -99,7 +99,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                   child: Text(
                     'OK',
                     style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.accentBlue,
+                      color: AppColors.primaryAccent,
                     ),
                   ),
                 ),
@@ -168,7 +168,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
     if (day.year == today.year &&
         day.month == today.month &&
         day.day == today.day) {
-      return AppColors.accentBlue;
+      return AppColors.primaryAccent;
     } else if (entry?.isFavorite == true) {
       return AppColors.warningAmber;
     } else if (entry != null) {
@@ -231,7 +231,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
       body: _loading
           ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.accentBlue,
+                color: AppColors.primaryAccent,
               ),
             )
           : Padding(
@@ -279,11 +279,11 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                           fontWeight: AppTypography.medium,
                         ),
                         selectedDecoration: BoxDecoration(
-                          color: AppColors.accentBlue,
+                          color: AppColors.primaryAccent,
                           shape: BoxShape.circle,
                         ),
                         todayDecoration: BoxDecoration(
-                          color: AppColors.accentBlue.withValues(alpha: 0.7),
+                          color: AppColors.primaryAccent.withValues(alpha: 0.7),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -340,13 +340,13 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
-                              color: AppColors.accentBlue.withValues(alpha: 0.1),
+                              color: AppColors.primaryAccent.withValues(alpha: 0.1),
                             ),
                             child: Center(
                               child: Text(
                                 '${day.day}',
                                 style: AppTypography.bodyMedium.copyWith(
-                                  color: AppColors.accentBlue,
+                                  color: AppColors.primaryAccent,
                                   fontWeight: AppTypography.medium,
                                 ),
                               ),
@@ -373,7 +373,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                               style: AppTypography.headlineSmall.copyWith(
                                 color: AppColors.textPrimary,
                                 decoration: TextDecoration.underline,
-                                decorationColor: AppColors.accentBlue,
+                                decorationColor: AppColors.primaryAccent,
                               ),
                             ),
                           );

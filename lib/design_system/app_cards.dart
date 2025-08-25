@@ -255,12 +255,12 @@ class AppCards {
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppColors.accentBlue).withOpacity(0.1),
+              color: (iconColor ?? AppColors.primaryAccent).withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Icon(
               icon,
-              color: iconColor ?? AppColors.accentBlue,
+              color: iconColor ?? AppColors.primaryAccent,
               size: 24.0,
             ),
           ),
@@ -313,7 +313,7 @@ class AppCards {
           if (icon != null) ...[
             Icon(
               icon,
-              color: AppColors.accentBlue,
+              color: AppColors.primaryAccent,
               size: 32.0,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -342,7 +342,7 @@ class AppCards {
             child: ElevatedButton(
               onPressed: onAction,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentBlue,
+                backgroundColor: AppColors.primaryAccent,
                 foregroundColor: AppColors.textOnAccent,
                 elevation: 0,
                 shape: RoundedRectangleBorder(

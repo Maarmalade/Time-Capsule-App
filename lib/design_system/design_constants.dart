@@ -64,7 +64,7 @@ class DesignConstants {
   );
 
   static const Border borderAccent = Border.fromBorderSide(
-    BorderSide(color: AppColors.accentBlue, width: 2),
+    BorderSide(color: AppColors.primaryAccent, width: 2),
   );
 
   // Gradient Definitions - For special visual effects
@@ -81,8 +81,8 @@ class DesignConstants {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      AppColors.accentBlue,
-      Color(0xFF1E4FE5),
+      AppColors.primaryAccent,
+      AppColors.blackLight,
     ],
   );
 
@@ -199,7 +199,7 @@ class DesignConstants {
         color: AppColors.surfacePrimary,
         borderRadius: AppSpacing.borderRadiusSm,
         border: Border.all(
-          color: AppColors.accentBlue,
+          color: AppColors.primaryAccent,
           width: 2,
         ),
       );

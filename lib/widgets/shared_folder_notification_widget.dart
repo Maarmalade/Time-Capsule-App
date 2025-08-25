@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/shared_folder_notification_model.dart';
+import '../design_system/app_colors.dart';
 
 class SharedFolderNotificationWidget extends StatelessWidget {
   final SharedFolderNotification notification;
@@ -23,13 +24,13 @@ class SharedFolderNotificationWidget extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: notification.isRead 
-              ? Colors.grey[300] 
-              : Theme.of(context).primaryColor,
+              ? AppColors.statusInactive.withValues(alpha: 0.3)
+              : AppColors.statusInfo,
           child: Icon(
             Icons.folder_shared,
             color: notification.isRead 
-                ? Colors.grey[600] 
-                : Colors.white,
+                ? AppColors.statusInactive
+                : AppColors.primaryWhite,
           ),
         ),
         title: Text(
@@ -47,16 +48,16 @@ class SharedFolderNotificationWidget extends StatelessWidget {
               '${notification.ownerUsername} invited you to collaborate on "${notification.folderName}"',
               style: TextStyle(
                 color: notification.isRead 
-                    ? Colors.grey[600] 
-                    : Colors.black87,
+                    ? AppColors.textTertiary
+                    : AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               _formatDateTime(notification.createdAt),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: AppColors.textTertiary,
               ),
             ),
           ],

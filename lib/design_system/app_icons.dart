@@ -33,7 +33,7 @@ class AppIcons {
   static const Color secondaryColor = AppColors.darkGray;
   
   /// Accent icon color for highlighted actions and active states
-  static const Color accentColor = AppColors.accentBlue;
+  static const Color accentColor = AppColors.primaryAccent;
   
   /// Disabled icon color for non-interactive elements
   static const Color disabledColor = AppColors.mediumGray;
@@ -46,6 +46,14 @@ class AppIcons {
   
   /// Warning icon color for caution and warning states
   static const Color warningColor = AppColors.warningAmber;
+  
+  /// Info icon color for informational states
+  static const Color infoColor = AppColors.infoBlue;
+  
+  /// Status indicator colors optimized for black theme
+  static const Color statusActiveColor = AppColors.statusActive;
+  static const Color statusInactiveColor = AppColors.statusInactive;
+  static const Color statusPendingColor = AppColors.statusPending;
   
   /// Icon color for use on dark backgrounds
   static const Color onDarkColor = AppColors.primaryWhite;
