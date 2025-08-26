@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
 import '../../widgets/home_panel_card.dart';
-// import removed: '../../widgets/nostalgia_reminder_widget.dart';
-import '../../services/diary_service.dart';
-import '../diary/diary_viewer_page.dart';
+import '../../services/media_service.dart';
 import '../../models/diary_entry_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../diary/diary_viewer_page.dart';
+
 import '../../design_system/app_spacing.dart';
 
 class HomePanelGrid extends StatelessWidget {
-  final DiaryService diaryService;
+  final MediaService mediaService;
+  final String personalDiaryFolderId;
   final void Function(BuildContext, String, String) navigate;
-  const HomePanelGrid({required this.diaryService, required this.navigate, super.key});
+  const HomePanelGrid({
+    required this.mediaService, 
+    required this.personalDiaryFolderId,
+    required this.navigate, 
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    return StreamBuilder<List<DiaryEntry>>(
-      stream: diaryService.getNostalgiaEntriesForToday(userId),
+    return StreamBuilder<List<DiaryEntryModel>>(
+      stream: mediaService.getFavoriteEntriesForToday(personalDiaryFolderId),
       builder: (context, snapshot) {
-        final nostalgiaEntries = snapshot.data ?? [];
-        final hasNostalgia = nostalgiaEntries.isNotEmpty;
-        final nostalgiaEntry = hasNostalgia ? nostalgiaEntries.first : null;
+        final favoriteEntries = snapshot.data ?? [];
+        final hasFavorites = favoriteEntries.isNotEmpty;
+        final favoriteEntry = hasFavorites ? favoriteEntries.first : null;
         final List<Widget> cards = [
           HomePanelCard(
             text: 'Access Memory',
@@ -43,25 +47,37 @@ class HomePanelGrid extends StatelessWidget {
             onTap: () => navigate(context, '/digital_diary', 'Digital Diary'),
           ),
         ];
-        if (hasNostalgia && nostalgiaEntry != null) {
+        if (hasFavorites && favoriteEntry != null) {
+          // Get the first image attachment if available
+          final imageAttachment = favoriteEntry.attachments
+              .where((a) => a.type == 'image')
+              .firstOrNull;
+          
           cards.add(
             HomePanelCard(
-              text: nostalgiaEntry.title.isNotEmpty ? nostalgiaEntry.title : '${DateTime.now().year - nostalgiaEntry.createdAt.toDate().year} year ago',
-              image: (nostalgiaEntry.imageUrl != null && nostalgiaEntry.imageUrl!.isNotEmpty)
-                  ? NetworkImage(nostalgiaEntry.imageUrl!)
+              text: favoriteEntry.title?.isNotEmpty == true 
+                ? favoriteEntry.title! 
+                : '${DateTime.now().year - favoriteEntry.diaryDate.toDate().year} year${DateTime.now().year - favoriteEntry.diaryDate.toDate().year > 1 ? 's' : ''} ago',
+              image: imageAttachment != null
+                  ? NetworkImage(imageAttachment.url)
                   : null,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => DiaryViewerPage(entry: nostalgiaEntry),
+                    builder: (_) => DiaryViewerPage(
+                      diary: favoriteEntry,
+                      folderId: personalDiaryFolderId,
+                      canEdit: true,
+                      isSharedFolder: false,
+                    ),
                   ),
                 );
               },
             ),
           );
         } else {
-          // Add a blank card if no nostalgia
+          // Add a blank card if no favorites
           cards.add(
             HomePanelCard(
               text: '',

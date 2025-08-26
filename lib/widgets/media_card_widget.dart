@@ -8,6 +8,7 @@ class MediaCardWidget extends StatelessWidget {
   final VoidCallback? onLongPress;
   final VoidCallback? onEditName;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit; // For diary entries
   final bool isSelected;
   final bool isMultiSelectMode;
   final bool isSharedFolder;
@@ -20,6 +21,7 @@ class MediaCardWidget extends StatelessWidget {
     this.onLongPress,
     this.onEditName,
     this.onDelete,
+    this.onEdit,
     this.isSelected = false,
     this.isMultiSelectMode = false,
     this.isSharedFolder = false,
@@ -30,24 +32,71 @@ class MediaCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content;
     if (media.type == 'image') {
-      content = Image.network(media.url, width: 60, height: 60);
+      content = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          media.url, 
+          width: 60, 
+          height: 60,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 60),
+        ),
+      );
     } else if (media.type == 'video') {
-      content = const Icon(Icons.videocam, size: 60);
+      content = Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.videocam, size: 30, color: Colors.blue),
+      );
+    } else if (media.type == 'audio') {
+      content = Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.purple.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.audiotrack, size: 30, color: Colors.purple),
+      );
+    } else if (media.type == 'diary') {
+      content = Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.book, size: 30, color: Colors.orange),
+      );
     } else if (media.type == 'text') {
-      content = Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            media.title ?? '',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            media.description ?? '',
-            style: const TextStyle(fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      content = Container(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              media.title ?? '',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (media.description?.isNotEmpty == true) ...[
+              const SizedBox(height: 4),
+              Text(
+                media.description!,
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
       );
     } else {
       content = const Icon(Icons.insert_drive_file, size: 60);
@@ -68,7 +117,38 @@ class MediaCardWidget extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              Center(child: content),
+              // Main content area
+              Positioned.fill(
+                child: Column(
+                  children: [
+                    // Content (icon/image/text) - takes most space
+                    Expanded(
+                      flex: media.type == 'text' ? 1 : 3,
+                      child: Center(child: content),
+                    ),
+                    
+                    // Title area (for non-text media types)
+                    if (media.type != 'text' && media.title?.isNotEmpty == true)
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Text(
+                            media.title!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               
               // Contributor attribution for shared folders
               if (isSharedFolder && contributorName != null && !isMultiSelectMode)
@@ -127,13 +207,15 @@ class MediaCardWidget extends StatelessWidget {
                 ),
               
               // Options menu (hidden in multi-select mode)
-              if (!isMultiSelectMode && (onEditName != null || onDelete != null))
+              if (!isMultiSelectMode && (onEditName != null || onDelete != null || onEdit != null))
                 Positioned(
                   top: 8,
                   right: 8,
                   child: OptionsMenuWidget(
                     onEditName: onEditName,
                     onDelete: onDelete,
+                    onEdit: onEdit,
+                    mediaType: media.type,
                   ),
                 ),
             ],

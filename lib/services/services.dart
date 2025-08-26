@@ -8,5 +8,6 @@ export 'media_service.dart';
 export 'message_service.dart';
 export 'montage_service.dart';
 export 'notification_service.dart';
+export 'permission_service.dart';
 export 'storage_service.dart';
 export 'user_profile_service.dart';

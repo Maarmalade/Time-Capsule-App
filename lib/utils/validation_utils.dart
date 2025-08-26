@@ -15,11 +15,19 @@ class ValidationUtils {
   static const int maxFileSize = 5 * 1024 * 1024; // 5MB
   static const int maxImageSize = 10 * 1024 * 1024; // 10MB for images
   static const int maxVideoSize = 100 * 1024 * 1024; // 100MB for videos
+  static const int maxAudioSize = 50 * 1024 * 1024; // 50MB for audio
   
   // Allowed file extensions
   static const List<String> allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   static const List<String> allowedVideoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+  static const List<String> allowedAudioExtensions = ['.mp3', '.m4a', '.wav', '.aac', '.ogg'];
   static const List<String> allowedDocumentExtensions = ['.pdf', '.doc', '.docx', '.txt'];
+  
+  // Media quality validation constants
+  static const int maxImageWidth = 4096;
+  static const int maxImageHeight = 4096;
+  static const int minImageWidth = 50;
+  static const int minImageHeight = 50;
 
   /// Validates username format and returns error message if invalid
   static String? validateUsername(String? username) {
@@ -121,9 +129,21 @@ class ValidationUtils {
         return 'Selected file does not exist';
       }
 
+      // Check if file is readable
+      try {
+        file.lengthSync();
+      } catch (e) {
+        return 'Cannot access the selected file. Please try again.';
+      }
+
       // Get file extension
       final fileName = file.path.toLowerCase();
-      final extension = fileName.substring(fileName.lastIndexOf('.'));
+      final lastDotIndex = fileName.lastIndexOf('.');
+      if (lastDotIndex == -1) {
+        return 'File must have a valid extension';
+      }
+      
+      final extension = fileName.substring(lastDotIndex);
       
       // Validate file type if specified
       if (expectedType != null) {
@@ -138,6 +158,11 @@ class ValidationUtils {
               return 'Please select a valid video file (${allowedVideoExtensions.join(', ')})';
             }
             break;
+          case 'audio':
+            if (!allowedAudioExtensions.contains(extension)) {
+              return 'Please select a valid audio file (${allowedAudioExtensions.join(', ')})';
+            }
+            break;
           case 'document':
             if (!allowedDocumentExtensions.contains(extension)) {
               return 'Please select a valid document file (${allowedDocumentExtensions.join(', ')})';
@@ -149,11 +174,18 @@ class ValidationUtils {
       // Check file size
       final fileSize = file.lengthSync();
       
+      // Validate against zero-byte files
+      if (fileSize == 0) {
+        return 'Selected file is empty or corrupted';
+      }
+      
       if (expectedType == 'image' && fileSize > maxImageSize) {
         return 'Image size must be less than ${(maxImageSize / (1024 * 1024)).toStringAsFixed(0)}MB';
       } else if (expectedType == 'video' && fileSize > maxVideoSize) {
         return 'Video size must be less than ${(maxVideoSize / (1024 * 1024)).toStringAsFixed(0)}MB';
-      } else if (fileSize > maxFileSize && expectedType != 'image' && expectedType != 'video') {
+      } else if (expectedType == 'audio' && fileSize > maxAudioSize) {
+        return 'Audio size must be less than ${(maxAudioSize / (1024 * 1024)).toStringAsFixed(0)}MB';
+      } else if (fileSize > maxFileSize && expectedType != 'image' && expectedType != 'video' && expectedType != 'audio') {
         return 'File size must be less than ${(maxFileSize / (1024 * 1024)).toStringAsFixed(0)}MB';
       }
 
@@ -232,11 +264,167 @@ class ValidationUtils {
     }
   }
 
+  /// Validates audio file specifically
+  static String? validateAudioFile(File file) {
+    final fileValidation = validateFileUpload(file, expectedType: 'audio');
+    if (fileValidation != null) {
+      return fileValidation;
+    }
+
+    // Additional audio-specific validation
+    final fileSize = file.lengthSync();
+    if (fileSize < 1024) { // Less than 1KB is likely not a valid audio file
+      return 'Audio file appears to be too small or corrupted';
+    }
+
+    return null;
+  }
+
+  /// Validates video file specifically
+  static String? validateVideoFile(File file) {
+    final fileValidation = validateFileUpload(file, expectedType: 'video');
+    if (fileValidation != null) {
+      return fileValidation;
+    }
+
+    // Additional video-specific validation
+    final fileSize = file.lengthSync();
+    if (fileSize < 10240) { // Less than 10KB is likely not a valid video file
+      return 'Video file appears to be too small or corrupted';
+    }
+
+    return null;
+  }
+
+  /// Validates image file specifically
+  static String? validateImageFile(File file) {
+    final fileValidation = validateFileUpload(file, expectedType: 'image');
+    if (fileValidation != null) {
+      return fileValidation;
+    }
+
+    // Additional image-specific validation
+    final fileSize = file.lengthSync();
+    if (fileSize < 512) { // Less than 512 bytes is likely not a valid image file
+      return 'Image file appears to be too small or corrupted';
+    }
+
+    return null;
+  }
+
+  /// Validates diary entry content
+  static String? validateDiaryContent(String? title, String? content) {
+    if (title == null || title.trim().isEmpty) {
+      return 'Diary title is required';
+    }
+
+    if (title.trim().length > 200) {
+      return 'Diary title must be less than 200 characters';
+    }
+
+    if (content == null || content.trim().isEmpty) {
+      return 'Diary content is required';
+    }
+
+    if (content.trim().length > 50000) {
+      return 'Diary content must be less than 50,000 characters';
+    }
+
+    // Check for safe content
+    if (!isSafeForDisplay(title.trim()) || !isSafeForDisplay(content.trim())) {
+      return 'Content contains invalid or unsafe characters';
+    }
+
+    return null;
+  }
+
+  /// Validates upload progress and provides user feedback
+  static String getUploadProgressMessage(double progress) {
+    if (progress < 0.1) {
+      return 'Preparing upload...';
+    } else if (progress < 0.5) {
+      return 'Uploading... ${(progress * 100).toInt()}%';
+    } else if (progress < 0.9) {
+      return 'Almost done... ${(progress * 100).toInt()}%';
+    } else if (progress < 1.0) {
+      return 'Finalizing upload...';
+    } else {
+      return 'Upload complete!';
+    }
+  }
+
+  /// Validates retry attempt limits
+  static String? validateRetryAttempt(int attemptCount, {int maxAttempts = 3}) {
+    if (attemptCount >= maxAttempts) {
+      return 'Maximum retry attempts ($maxAttempts) exceeded. Please try again later.';
+    }
+    return null;
+  }
+
   /// Validates network connectivity requirements
   static String? validateNetworkOperation() {
     // This would typically check actual network connectivity
     // For now, we'll return null (no error) as network checks
     // are handled by Firebase SDK
+    return null;
+  }
+
+  /// Validates media attachment for diary entries
+  static String? validateDiaryAttachment(File file, String mediaType, int position) {
+    // Validate the file based on its type
+    String? fileError;
+    switch (mediaType.toLowerCase()) {
+      case 'image':
+        fileError = validateImageFile(file);
+        break;
+      case 'video':
+        fileError = validateVideoFile(file);
+        break;
+      case 'audio':
+        fileError = validateAudioFile(file);
+        break;
+      default:
+        return 'Unsupported media type: $mediaType';
+    }
+
+    if (fileError != null) {
+      return fileError;
+    }
+
+    // Validate position
+    if (position < 0) {
+      return 'Invalid attachment position';
+    }
+
+    return null;
+  }
+
+  /// Validates multiple file selection for batch operations
+  static String? validateMultipleFileSelection(List<File> files, String expectedType) {
+    if (files.isEmpty) {
+      return 'No files selected';
+    }
+
+    if (files.length > 20) {
+      return 'Cannot select more than 20 files at once';
+    }
+
+    // Validate each file
+    for (int i = 0; i < files.length; i++) {
+      final file = files[i];
+      final error = validateFileUpload(file, expectedType: expectedType);
+      if (error != null) {
+        return 'File ${i + 1}: $error';
+      }
+    }
+
+    // Check total size for batch upload
+    final totalSize = files.fold<int>(0, (sum, file) => sum + file.lengthSync());
+    const maxBatchSize = 500 * 1024 * 1024; // 500MB total
+    if (totalSize > maxBatchSize) {
+      return 'Total file size exceeds ${(maxBatchSize / (1024 * 1024)).toStringAsFixed(0)}MB limit';
+    }
+
     return null;
   }
 }

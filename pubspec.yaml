@@ -31,6 +31,12 @@ dependencies:
   video_player: ^2.9.2
   chewie: ^1.8.5
   google_fonts: ^6.1.0
+  record: ^6.0.0
+  audioplayers: ^6.0.0
+  file_picker: ^8.0.0
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.2
+  path: ^1.9.0
 
 
 dev_dependencies:
@@ -53,6 +59,7 @@ flutter:
   
   assets:
     - assets/images/
+    - lib/src/img/
 
 flutter_icons:
   android: true

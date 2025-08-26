@@ -30,10 +30,7 @@ class FriendListTile extends StatelessWidget {
       onTap: onTap,
       leading: Stack(
         children: [
-          ProfilePictureWidget(
-            userProfile: friend,
-            size: 48,
-          ),
+          ProfilePictureWidget(userProfile: friend, size: 48),
           if (showOnlineStatus)
             Positioned(
               right: 0,
@@ -63,8 +60,8 @@ class FriendListTile extends StatelessWidget {
           ? Text(
               isOnline ? 'Online' : 'Offline',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: isOnline 
-                    ? Colors.green 
+                color: isOnline
+                    ? Colors.green
                     : theme.colorScheme.onSurfaceVariant,
               ),
             )
@@ -97,16 +94,13 @@ class SelectableFriendListTile extends StatelessWidget {
     return CheckboxListTile(
       value: isSelected,
       onChanged: enabled ? onChanged : null,
-      secondary: ProfilePictureWidget(
-        userProfile: friend,
-        size: 48,
-      ),
+      secondary: ProfilePictureWidget(userProfile: friend, size: 48),
       title: Text(
         friend.username,
         style: theme.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w500,
-          color: enabled 
-              ? null 
+          color: enabled
+              ? null
               : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
         ),
       ),

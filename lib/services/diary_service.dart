@@ -1,7 +1,58 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../models/diary_entry_model.dart';
+
+// Legacy DiaryEntry class for backward compatibility
+class DiaryEntry {
+  final String id;
+  final String title;
+  final String text;
+  final DateTime date;
+  final List<DiaryMedia> media;
+  final bool isFavorite;
+  final Timestamp createdAt;
+  final String? imageUrl;
+
+  DiaryEntry({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.date,
+    required this.media,
+    required this.isFavorite,
+    required this.createdAt,
+    this.imageUrl,
+  });
+
+  factory DiaryEntry.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return DiaryEntry(
+      id: doc.id,
+      title: data['title'] ?? '',
+      text: data['text'] ?? '',
+      date: (data['date'] as Timestamp).toDate(),
+      media: (data['media'] as List<dynamic>? ?? [])
+          .map((m) => DiaryMedia.fromMap(Map<String, dynamic>.from(m)))
+          .toList(),
+      isFavorite: data['isFavorite'] ?? false,
+      createdAt: data['createdAt'] ?? Timestamp.now(),
+      imageUrl: data['imageUrl'],
+    );
+  }
+}
+
+// Legacy DiaryMedia class for backward compatibility
+class DiaryMedia {
+  final String url;
+  final String type;
+
+  DiaryMedia({required this.url, required this.type});
+
+  Map<String, dynamic> toMap() => {'url': url, 'type': type};
+
+  factory DiaryMedia.fromMap(Map<String, dynamic> map) =>
+      DiaryMedia(url: map['url'] ?? '', type: map['type'] ?? '');
+}
 
 class DiaryService {
 
@@ -87,5 +138,31 @@ class DiaryService {
                   created.year < thisYear;
             })
             .toList());
+  }
+
+  // Audio diary support methods
+  Future<String> uploadAudioFile(String userId, String entryId, File audioFile) async {
+    final filename = audioFile.path.split('/').last;
+    final ref = _storage
+        .ref()
+        .child('diaryAudio/$userId/$entryId/$filename');
+    final uploadTask = await ref.putFile(audioFile);
+    return await uploadTask.ref.getDownloadURL();
+  }
+
+  Future<String> createAudioDiaryEntry(String userId, Map<String, dynamic> entryData) async {
+    final ref = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('diaryEntries')
+        .doc();
+    
+    // Add audio-specific fields
+    entryData['type'] = 'audio';
+    entryData['createdAt'] = Timestamp.now();
+    entryData['updatedAt'] = Timestamp.now();
+    
+    await ref.set(entryData);
+    return ref.id;
   }
 }

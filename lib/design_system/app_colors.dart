@@ -41,6 +41,11 @@ class AppColors {
   static const Color infoBlueLight = Color(0xFFD1ECF1); // Light blue background for info states
   static const Color infoBlueDark = Color(0xFF0C5460); // Dark blue text for info states
 
+  // Favorite Colors - For favorite/starred content
+  static const Color favoriteYellow = Color(0xFFFFD700); // Gold yellow for favorite stars
+  static const Color favoriteYellowLight = Color(0xFFFFF8DC); // Light yellow background
+  static const Color favoriteYellowDark = Color(0xFFB8860B); // Dark yellow for text/borders
+
   // Status Indicator Colors - Optimized for visibility with black elements
   static const Color statusActive = primaryAccent; // Black for active status
   static const Color statusInactive = Color(0xFF6C757D); // Gray for inactive status

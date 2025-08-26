@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'black_theme_accessibility.dart';
 import 'accessibility_utils.dart';
-import '../design_system/app_colors.dart';
 
 /// Runtime validator for theme accessibility compliance
 class AccessibilityThemeValidator {

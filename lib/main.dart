@@ -16,7 +16,7 @@ void main() async {
   AppTheme.setSystemUIOverlayStyle();
   
   // Configure Google Fonts license handling
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = true;
   
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

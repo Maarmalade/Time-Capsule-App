@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 class OptionsMenuWidget extends StatelessWidget {
   final VoidCallback? onEditName;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit; // For diary entries
+  final String? mediaType; // To determine available options
 
   const OptionsMenuWidget({
     super.key,
     this.onEditName,
     this.onDelete,
+    this.onEdit,
+    this.mediaType,
   });
 
   @override
@@ -29,9 +33,23 @@ class OptionsMenuWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       itemBuilder: (context) => [
-        if (onEditName != null)
+        // Edit diary content (for diary entries)
+        if (mediaType == 'diary' && onEdit != null)
           PopupMenuItem<String>(
-            value: 'edit',
+            value: 'edit_diary',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.edit, size: 18, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Edit'),
+              ],
+            ),
+          ),
+        // Edit name (for other media types)
+        if (mediaType != 'diary' && onEditName != null)
+          PopupMenuItem<String>(
+            value: 'edit_name',
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const [
@@ -56,7 +74,10 @@ class OptionsMenuWidget extends StatelessWidget {
       ],
       onSelected: (value) {
         switch (value) {
-          case 'edit':
+          case 'edit_diary':
+            onEdit?.call();
+            break;
+          case 'edit_name':
             onEditName?.call();
             break;
           case 'delete':

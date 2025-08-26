@@ -17,6 +17,7 @@ import 'pages/public_folders/public_folders_page.dart';
 import 'models/folder_model.dart';
 import 'constants/route_constants.dart';
 
+
 Route<dynamic> generateRoute(RouteSettings settings) {
   switch (settings.name) {
     case Routes.login:
@@ -83,6 +84,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const DeliveredMessagesPage());
     case Routes.publicFolders:
       return MaterialPageRoute(builder: (_) => const PublicFoldersPage());
+
 
     default:
       return MaterialPageRoute(builder: (_) => const LoginPage());

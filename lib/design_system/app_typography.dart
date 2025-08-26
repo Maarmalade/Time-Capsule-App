@@ -19,21 +19,32 @@ class AppTypography {
   static const FontWeight bold = FontWeight.w700;
 
   // Display Styles - For large, prominent text
-  static TextStyle get displayLarge => GoogleFonts.inter(
+  static TextStyle get displayLarge {
+    try {
+      return GoogleFonts.inter(
         fontSize: 32,
         fontWeight: semiBold,
         height: 1.2,
         letterSpacing: -0.5,
       );
+    } catch (e) {
+      return GoogleFonts.roboto(
+        fontSize: 32,
+        fontWeight: semiBold,
+        height: 1.2,
+        letterSpacing: -0.5,
+      );
+    }
+  }
 
-  static TextStyle get displayMedium => GoogleFonts.inter(
+  static TextStyle get displayMedium => _safeGoogleFont(
         fontSize: 28,
         fontWeight: semiBold,
         height: 1.2,
         letterSpacing: -0.25,
       );
 
-  static TextStyle get displaySmall => GoogleFonts.inter(
+  static TextStyle get displaySmall => _safeGoogleFont(
         fontSize: 24,
         fontWeight: medium,
         height: 1.3,
@@ -41,21 +52,21 @@ class AppTypography {
       );
 
   // Headline Styles - For section headers and page titles
-  static TextStyle get headlineLarge => GoogleFonts.inter(
+  static TextStyle get headlineLarge => _safeGoogleFont(
         fontSize: 24,
         fontWeight: semiBold,
         height: 1.3,
         letterSpacing: -0.25,
       );
 
-  static TextStyle get headlineMedium => GoogleFonts.inter(
+  static TextStyle get headlineMedium => _safeGoogleFont(
         fontSize: 20,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0,
       );
 
-  static TextStyle get headlineSmall => GoogleFonts.inter(
+  static TextStyle get headlineSmall => _safeGoogleFont(
         fontSize: 18,
         fontWeight: medium,
         height: 1.4,
@@ -63,21 +74,21 @@ class AppTypography {
       );
 
   // Title Styles - For card titles and component headers
-  static TextStyle get titleLarge => GoogleFonts.inter(
+  static TextStyle get titleLarge => _safeGoogleFont(
         fontSize: 18,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0,
       );
 
-  static TextStyle get titleMedium => GoogleFonts.inter(
+  static TextStyle get titleMedium => _safeGoogleFont(
         fontSize: 16,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0.1,
       );
 
-  static TextStyle get titleSmall => GoogleFonts.inter(
+  static TextStyle get titleSmall => _safeGoogleFont(
         fontSize: 14,
         fontWeight: medium,
         height: 1.4,
@@ -85,21 +96,21 @@ class AppTypography {
       );
 
   // Body Styles - For main content and descriptions
-  static TextStyle get bodyLarge => GoogleFonts.inter(
+  static TextStyle get bodyLarge => _safeGoogleFont(
         fontSize: 16,
         fontWeight: regular,
         height: 1.5,
         letterSpacing: 0,
       );
 
-  static TextStyle get bodyMedium => GoogleFonts.inter(
+  static TextStyle get bodyMedium => _safeGoogleFont(
         fontSize: 14,
         fontWeight: regular,
         height: 1.5,
         letterSpacing: 0,
       );
 
-  static TextStyle get bodySmall => GoogleFonts.inter(
+  static TextStyle get bodySmall => _safeGoogleFont(
         fontSize: 12,
         fontWeight: regular,
         height: 1.4,
@@ -107,21 +118,21 @@ class AppTypography {
       );
 
   // Label Styles - For buttons, form labels, and captions
-  static TextStyle get labelLarge => GoogleFonts.inter(
+  static TextStyle get labelLarge => _safeGoogleFont(
         fontSize: 14,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0.1,
       );
 
-  static TextStyle get labelMedium => GoogleFonts.inter(
+  static TextStyle get labelMedium => _safeGoogleFont(
         fontSize: 12,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0.1,
       );
 
-  static TextStyle get labelSmall => GoogleFonts.inter(
+  static TextStyle get labelSmall => _safeGoogleFont(
         fontSize: 10,
         fontWeight: medium,
         height: 1.4,
@@ -129,26 +140,61 @@ class AppTypography {
       );
 
   // Specialized Styles - For specific use cases
-  static TextStyle get buttonText => GoogleFonts.inter(
+  static TextStyle get buttonText => _safeGoogleFont(
         fontSize: 14,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0.1,
       );
 
-  static TextStyle get caption => GoogleFonts.inter(
+  static TextStyle get caption => _safeGoogleFont(
         fontSize: 12,
         fontWeight: regular,
         height: 1.4,
         letterSpacing: 0,
       );
 
-  static TextStyle get overline => GoogleFonts.inter(
+  static TextStyle get overline => _safeGoogleFont(
         fontSize: 10,
         fontWeight: medium,
         height: 1.4,
         letterSpacing: 0.5,
       );
+
+  // Helper method to safely load Google Fonts with fallback
+  static TextStyle _safeGoogleFont({
+    required double fontSize,
+    required FontWeight fontWeight,
+    required double height,
+    required double letterSpacing,
+  }) {
+    try {
+      return GoogleFonts.inter(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        height: height,
+        letterSpacing: letterSpacing,
+      );
+    } catch (e) {
+      // Fallback to Roboto if Inter fails
+      try {
+        return GoogleFonts.roboto(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      } catch (e2) {
+        // Final fallback to system font
+        return TextStyle(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+          letterSpacing: letterSpacing,
+        );
+      }
+    }
+  }
 
   /// Complete Material 3 TextTheme configuration
   static TextTheme get textTheme => TextTheme(

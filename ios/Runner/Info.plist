@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Permissions for enhanced media capture -->
+	<key>NSCameraUsageDescription</key>
+	<string>Time Capsule needs camera access to capture photos and videos for your memory albums.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Time Capsule needs microphone access to record audio for your memory albums and diary entries.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Time Capsule needs photo library access to select existing photos and videos for your memory albums.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Time Capsule needs permission to save captured photos and videos to your photo library.</string>
 </dict>
 </plist>

@@ -1,7 +1,8 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart';
+
 import '../../models/folder_model.dart';
 import '../../models/media_file_model.dart';
 import '../../models/user_profile.dart';
@@ -21,7 +22,15 @@ import '../../widgets/multi_select_manager.dart';
 import '../../widgets/batch_action_bar.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../widgets/folder_settings_dialog.dart';
+import '../../widgets/media_source_dialog.dart';
+import '../../widgets/audio_recording_interface.dart';
+import '../../widgets/audio_file_picker.dart';
+import '../../widgets/audio_player_widget.dart';
+
+import '../diary/diary_editor_page.dart';
+import '../diary/diary_viewer_page.dart';
 import '../../constants/route_constants.dart';
+import '../../utils/error_handler.dart';
 
 class FolderDetailPage extends StatefulWidget {
   final FolderModel folder;
@@ -407,6 +416,9 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
                               onLongPress: () => _handleMediaLongPress(m),
                               onEditName: () => _editMediaName(m),
                               onDelete: () => _deleteMedia(m),
+                              onEdit: m.type == 'diary'
+                                  ? () => _editDiaryEntry(m)
+                                  : null,
                             );
                           }),
                         ];
@@ -459,11 +471,135 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
     if (_multiSelectManager.isMultiSelectMode) {
       _multiSelectManager.toggleMediaSelection(media.id);
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
-      );
+      // Handle diary entries differently
+      if (media.type == 'diary') {
+        _openDiaryEntry(media);
+      } else if (media.type == 'audio') {
+        // For audio files, show a dialog with audio player
+        _showAudioPlayerDialog(media);
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => MediaViewerPage(media: media)),
+        );
+      }
     }
+  }
+
+  Future<void> _openDiaryEntry(MediaFileModel media) async {
+    try {
+      // Get the full diary entry data
+      final diaryEntry = await _mediaService.getDiaryEntry(
+        widget.folder.id,
+        media.id,
+      );
+
+      if (diaryEntry == null) {
+        throw Exception('Diary entry not found');
+      }
+
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => DiaryViewerPage(
+            diary: diaryEntry,
+            folderId: widget.folder.id,
+            canEdit: _canContribute || _isOwner,
+            isSharedFolder: _sharedData != null,
+          ),
+        ),
+      );
+
+      if (result == true && mounted) {
+        // Diary was updated, refresh the view
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to open diary entry: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAudioPlayerDialog(MediaFileModel media) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 400,
+            maxHeight:
+                MediaQuery.of(context).size.height *
+                0.75, // Use 75% of screen height
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with close button - more compact
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Audio Player',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Audio player - make it scrollable and flexible
+              Flexible(
+                child: SingleChildScrollView(
+                  child: AudioPlayerWidget(
+                    audioUrl: media.url,
+                    title: media.title,
+                  ),
+                ),
+              ),
+
+              // Action buttons - more compact
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MediaViewerPage(media: media),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.fullscreen),
+                    label: const Text('Full Screen'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _handleMediaLongPress(MediaFileModel media) {
@@ -656,6 +792,22 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.audiotrack),
+                title: const Text('Add Audio'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _addAudio(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.book),
+                title: const Text('Add Diary Doc'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _addDiaryEntry(context);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.create_new_folder),
                 title: const Text('Add Nested Folder'),
                 onTap: () async {
@@ -730,61 +882,388 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
   }
 
   Future<void> _addImage(BuildContext context) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final file = await picked.readAsBytes();
-    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-    final storagePath =
-        'users/$userId/folders/${widget.folder.id}/images/$fileName.jpg';
-    final url = await _storageService.uploadFileBytes(file, storagePath);
-    final media = MediaFileModel(
-      id: '',
-      folderId: widget.folder.id,
-      type: 'image',
-      url: url,
-      title: 'Image',
-      description: '',
-      createdAt: Timestamp.now(),
-    );
+    // Store ScaffoldMessenger reference early to avoid context issues
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    // Create media with contributor attribution for shared folders
-    await _mediaService.createMediaWithAttribution(
-      widget.folder.id,
-      media,
-      userId,
-      _sharedData != null,
-    );
+    try {
+      // Show media source selection dialog
+      final selectedSource = await MediaSourceDialog.show(
+        context: context,
+        mediaType: MediaSourceType.image,
+      );
+
+      if (selectedSource == null) {
+        // User cancelled the dialog
+        return;
+      }
+
+      // Convert to ImageSource
+      final imageSource = MediaSourceDialog.toImageSource(selectedSource);
+      if (imageSource == null) {
+        return;
+      }
+
+      final userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Show loading indicator
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Processing image...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+
+      // Use enhanced MediaService method
+      final media = await _mediaService.captureAndUploadImage(
+        folderId: widget.folder.id,
+        userId: userId,
+        source: imageSource,
+        context: context,
+        isSharedFolder: _sharedData != null,
+      );
+
+      if (mounted) {
+        // Hide loading indicator
+        scaffoldMessenger.hideCurrentSnackBar();
+
+        if (media != null) {
+          // Show success message
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Image added successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        // If media is null, user cancelled during the process (no error message needed)
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to add image: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _addVideo(BuildContext context) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickVideo(source: ImageSource.gallery);
-    if (picked == null) return;
-    final file = await picked.readAsBytes();
-    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    final userId = FirebaseAuth.instance.currentUser!.uid;
-    final storagePath =
-        'users/$userId/folders/${widget.folder.id}/videos/$fileName.mp4';
-    final url = await _storageService.uploadFileBytes(file, storagePath);
-    final media = MediaFileModel(
-      id: '',
-      folderId: widget.folder.id,
-      type: 'video',
-      url: url,
-      title: 'Video',
-      description: '',
-      createdAt: Timestamp.now(),
+    // Store ScaffoldMessenger reference early to avoid context issues
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      // Show media source selection dialog
+      final selectedSource = await MediaSourceDialog.show(
+        context: context,
+        mediaType: MediaSourceType.video,
+      );
+
+      if (selectedSource == null) {
+        // User cancelled the dialog
+        return;
+      }
+
+      // Convert to ImageSource
+      final imageSource = MediaSourceDialog.toImageSource(selectedSource);
+      if (imageSource == null) {
+        return;
+      }
+
+      final userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Show loading indicator
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Processing video...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+
+      // Use enhanced MediaService method
+      final media = await _mediaService.captureAndUploadVideo(
+        folderId: widget.folder.id,
+        userId: userId,
+        source: imageSource,
+        context: context,
+        isSharedFolder: _sharedData != null,
+      );
+
+      if (mounted) {
+        // Hide loading indicator
+        scaffoldMessenger.hideCurrentSnackBar();
+
+        if (media != null) {
+          // Show success message
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Video added successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        // If media is null, user cancelled during the process (no error message needed)
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to add video: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _addAudio(BuildContext context) async {
+    // Store ScaffoldMessenger reference early to avoid context issues
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      // Show audio source selection dialog (same as diary editor)
+      final selectedSource = await MediaSourceDialog.show(
+        context: context,
+        mediaType: MediaSourceType.audio,
+      );
+
+      if (selectedSource == null) {
+        // User cancelled the dialog
+        return;
+      }
+
+      // Check if widget is still mounted after async operation
+      if (!mounted) return;
+
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      if (selectedSource == MediaSource.record) {
+        // Handle audio recording - use current context if still mounted
+        await _handleAudioRecording(userId, scaffoldMessenger);
+      } else if (selectedSource == MediaSource.selectFile) {
+        // Handle audio file selection - use current context if still mounted
+        await _handleAudioFileSelection(userId, scaffoldMessenger);
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to add audio: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleAudioRecording(
+    String userId,
+    ScaffoldMessengerState scaffoldMessenger,
+  ) async {
+    // Check if widget is still mounted before showing dialog
+    if (!mounted) return;
+
+    // Show audio recording dialog (same as diary editor)
+    final recordingPath = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: AudioRecordingInterface(
+            onRecordingComplete: (path) => Navigator.pop(dialogContext, path),
+            onCancel: () => Navigator.pop(dialogContext),
+          ),
+        ),
+      ),
     );
 
-    // Create media with contributor attribution for shared folders
-    await _mediaService.createMediaWithAttribution(
-      widget.folder.id,
-      media,
-      userId,
-      _sharedData != null,
+    if (recordingPath == null) {
+      // User cancelled recording
+      return;
+    }
+
+    // Show loading indicator
+    if (mounted) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Uploading audio recording...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+    }
+
+    try {
+      // Upload recorded audio (same method as diary editor)
+      final media = await _mediaService.uploadRecordedAudio(
+        folderId: widget.folder.id,
+        userId: userId,
+        recordingPath: recordingPath,
+        title: 'Voice Recording',
+        isSharedFolder: _sharedData != null,
+      );
+
+      if (mounted) {
+        // Hide loading indicator
+        scaffoldMessenger.hideCurrentSnackBar();
+
+        if (media != null) {
+          // Show success message
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Audio recording added successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload audio recording: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleAudioFileSelection(
+    String userId,
+    ScaffoldMessengerState scaffoldMessenger,
+  ) async {
+    // Check if widget is still mounted before showing dialog
+    if (!mounted) return;
+
+    // Show audio file picker dialog (same as diary editor)
+    final audioFile = await showDialog<File>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: AudioFilePicker(
+          onFileSelected: (file, metadata) =>
+              Navigator.pop(dialogContext, file),
+          onCancel: () => Navigator.pop(dialogContext),
+        ),
+      ),
     );
+
+    if (audioFile == null) {
+      // User cancelled file selection
+      return;
+    }
+
+    // Show loading indicator
+    if (mounted) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Uploading audio file...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+    }
+
+    try {
+      // Upload selected audio file (same method as diary editor)
+      final media = await _mediaService.uploadAudioFile(
+        folderId: widget.folder.id,
+        userId: userId,
+        audioFile: audioFile,
+        title: 'Audio File',
+        isSharedFolder: _sharedData != null,
+      );
+
+      if (mounted) {
+        // Hide loading indicator
+        scaffoldMessenger.hideCurrentSnackBar();
+
+        if (media != null) {
+          // Show success message
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Audio file added successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload audio file: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   // Edit folder name functionality
@@ -905,6 +1384,98 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
             context,
           ).showSnackBar(SnackBar(content: Text('Failed to delete file: $e')));
         }
+      }
+    }
+  }
+
+  Future<void> _addDiaryEntry(BuildContext context) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Navigate to diary editor for new entry creation
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => DiaryEditorPage(
+            folderId: widget.folder.id,
+            isSharedFolder: _sharedData != null,
+          ),
+        ),
+      );
+
+      if (result == true && mounted) {
+        // Diary was created successfully, show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Diary entry created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to create diary entry: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _editDiaryEntry(MediaFileModel media) async {
+    try {
+      if (media.type != 'diary') {
+        throw Exception('Media is not a diary entry');
+      }
+
+      // Get the full diary entry data
+      final diaryEntry = await _mediaService.getDiaryEntry(
+        widget.folder.id,
+        media.id,
+      );
+
+      if (diaryEntry == null) {
+        throw Exception('Diary entry not found');
+      }
+
+      // Navigate to diary editor for editing
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => DiaryEditorPage(
+            folderId: widget.folder.id,
+            existingEntry: diaryEntry,
+            isSharedFolder: _sharedData != null,
+          ),
+        ),
+      );
+
+      if (result == true && mounted) {
+        // Diary was updated successfully, show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Diary entry updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to edit diary entry: ${ErrorHandler.getErrorMessage(e)}',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     }
   }

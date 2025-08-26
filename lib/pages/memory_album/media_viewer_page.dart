@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/media_file_model.dart';
 import '../../services/video_integration_service.dart';
+import '../../widgets/audio_player_widget.dart';
 
 class MediaViewerPage extends StatelessWidget {
   final MediaFileModel media;
@@ -42,7 +43,10 @@ class MediaViewerPage extends StatelessWidget {
         ),
       );
     } else if (media.type == 'audio') {
-      content = const Center(child: Icon(Icons.volume_up, size: 120));
+      content = AudioPlayerWidget(
+        audioUrl: media.url,
+        title: media.title,
+      );
     } else {
       content = const Center(child: Icon(Icons.insert_drive_file, size: 120));
     }

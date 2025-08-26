@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/media_service.dart';
 import '../../models/diary_entry_model.dart';
-import '../../services/diary_service.dart';
-import 'diary_entry_page.dart';
+import 'diary_editor_page.dart';
 import 'diary_viewer_page.dart';
 import '../../constants/route_constants.dart';
 import '../../design_system/app_colors.dart';
 import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
+import '../../widgets/nostalgia_reminder_widget.dart';
 
 class DigitalDiaryPage extends StatefulWidget {
   const DigitalDiaryPage({super.key});
@@ -130,12 +131,15 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
     return months[month];
   }
 
-  final DiaryService _diaryService = DiaryService();
+  final MediaService _mediaService = MediaService();
   final userId = FirebaseAuth.instance.currentUser!.uid;
+  
+  // Personal diary folder ID
+  String get _personalDiaryFolderId => 'personal-diary-$userId';
 
   late DateTime _focusedDay;
   late DateTime _selectedDay;
-  Map<DateTime, DiaryEntry> _entries = {};
+  Map<DateTime, DiaryEntryModel> _entries = {};
   bool _loading = true;
 
   @override
@@ -148,18 +152,39 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
 
   Future<void> _fetchEntries() async {
     setState(() => _loading = true);
-    final entries = await _diaryService.fetchDiaryEntriesForMonth(
-      userId,
-      _focusedDay.year,
-      _focusedDay.month,
-    );
-    setState(() {
-      _entries = {
-        for (var e in entries)
-          DateTime(e.date.year, e.date.month, e.date.day): e,
-      };
-      _loading = false;
-    });
+    
+    try {
+      // Get all media from the personal diary folder
+      final mediaStream = _mediaService.streamMedia(_personalDiaryFolderId);
+      final allMedia = await mediaStream.first;
+      
+      // Filter for diary entries in the current month
+      final start = DateTime(_focusedDay.year, _focusedDay.month, 1);
+      final end = DateTime(_focusedDay.year, _focusedDay.month + 1, 1);
+      
+      final diaryEntries = allMedia
+          .whereType<DiaryEntryModel>()
+          .where((entry) {
+            final entryDate = entry.diaryDate.toDate();
+            return entryDate.isAfter(start.subtract(const Duration(days: 1))) &&
+                   entryDate.isBefore(end);
+          })
+          .toList();
+      
+      setState(() {
+        _entries = {
+          for (var e in diaryEntries)
+            DateTime(e.diaryDate.toDate().year, e.diaryDate.toDate().month, e.diaryDate.toDate().day): e,
+        };
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _entries = {};
+        _loading = false;
+      });
+      debugPrint('Error fetching diary entries: $e');
+    }
   }
 
   Color _getBorderColor(DateTime day) {
@@ -169,10 +194,9 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
         day.month == today.month &&
         day.day == today.day) {
       return AppColors.primaryAccent;
-    } else if (entry?.isFavorite == true) {
-      return AppColors.warningAmber;
     } else if (entry != null) {
-      return AppColors.successGreen;
+      // Use yellow border for favorite entries, black for regular entries
+      return entry.isFavorite ? AppColors.favoriteYellow : AppColors.primaryAccent;
     } else {
       return AppColors.borderMedium;
     }
@@ -190,15 +214,30 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
           selectedDay.day,
         )];
     if (entry == null) {
+      // Create new diary entry using DiaryEditorPage with selected date
       final created = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => DiaryEntryPage(date: selectedDay)),
+        MaterialPageRoute(
+          builder: (_) => DiaryEditorPage(
+            folderId: _personalDiaryFolderId,
+            isSharedFolder: false,
+            selectedDate: selectedDay,
+          ),
+        ),
       );
       if (created == true) _fetchEntries();
     } else {
+      // View existing diary entry using DiaryViewerPage
       final updated = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => DiaryViewerPage(entry: entry)),
+        MaterialPageRoute(
+          builder: (_) => DiaryViewerPage(
+            diary: entry,
+            folderId: _personalDiaryFolderId,
+            canEdit: true,
+            isSharedFolder: false,
+          ),
+        ),
       );
       if (updated == true) _fetchEntries();
     }
@@ -234,7 +273,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                 color: AppColors.primaryAccent,
               ),
             )
-          : Padding(
+          : SingleChildScrollView(
               padding: AppSpacing.paddingMd,
               child: Column(
                 children: [
@@ -386,6 +425,14 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
+                  
+                  // Nostalgia reminders
+                  NostalgiaReminderWidget(
+                    mediaService: MediaService(),
+                    personalDiaryFolderId: _personalDiaryFolderId,
+                  ),
+                  
+                  const SizedBox(height: AppSpacing.lg),
                   SizedBox(
                     width: double.infinity,
                     height: AppSpacing.minTouchTarget,
@@ -397,6 +444,8 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
                       ),
                     ),
                   ),
+                  // Add bottom padding to ensure button is accessible
+                  const SizedBox(height: AppSpacing.lg),
                 ],
               ),
             ),

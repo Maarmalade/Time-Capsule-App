@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../diary/digital_diary_page.dart';
 import 'home_panel_grid.dart';
 import '../memory_album/memory_album_page.dart';
-import '../../services/diary_service.dart';
+import '../../services/media_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/profile_picture_service.dart';
 import '../../models/user_profile.dart';
@@ -23,6 +24,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ProfilePictureService _profileService = ProfilePictureService();
   UserProfile? _userProfile;
+  
+  // Personal diary folder ID - user-specific for privacy
+  String get _personalDiaryFolderId {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) throw Exception('User not authenticated');
+    return 'personal-diary-$userId';
+  }
 
   Future<void> _showLogoutConfirmation(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -146,6 +154,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Row(
                     children: [
+
                       GestureDetector(
                         onTap: () =>
                             Navigator.pushNamed(context, Routes.profile),
@@ -211,7 +220,8 @@ class _HomePageState extends State<HomePage> {
               // Main content grid
               Expanded(
                 child: HomePanelGrid(
-                  diaryService: DiaryService(),
+                  mediaService: MediaService(),
+                  personalDiaryFolderId: _personalDiaryFolderId,
                   navigate: (context, route, pageName) {
                     if (route == '/digital_diary') {
                       Navigator.push(
