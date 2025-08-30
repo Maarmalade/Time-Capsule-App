@@ -621,7 +621,7 @@ class MediaService {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snap) => snap.docs.map((d) {
-          final data = d.data() as Map<String, dynamic>;
+          final data = d.data();
           final type = data['type'] ?? '';
           
           // Handle diary entries specially

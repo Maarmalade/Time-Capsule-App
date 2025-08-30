@@ -1,104 +1,113 @@
-# Time Capsule - Technical Stack
+---
+inclusion: always
+---
 
-## Framework & Platform
-- **Flutter SDK**: ^3.8.1 - Cross-platform mobile development
-- **Dart**: Primary programming language
+# Time Capsule - Technical Implementation Guide
+
+## Core Technology Stack
+- **Flutter SDK**: ^3.8.1 with Material Design 3
+- **Firebase**: Complete BaaS integration (Auth, Firestore, Storage, Functions)
 - **Target Platforms**: Android, iOS, Web, Windows, macOS, Linux
+- **Node.js**: v22 for Cloud Functions
 
-## Backend & Services
-- **Firebase Core**: ^3.15.1 - Backend-as-a-Service platform
-- **Firebase Auth**: ^5.6.2 - User authentication and management
-- **Cloud Firestore**: ^5.6.2 - NoSQL document database
-- **Firebase Storage**: ^12.3.6 - File storage for images/videos
-- **Cloud Functions**: ^5.6.2 - Serverless backend logic (Node.js 22)
-- **Firebase App Check**: ^0.3.1+3 - App security and abuse prevention
+## Critical Implementation Rules
 
-## Key Dependencies
-- **UI/UX**: Google Fonts ^6.1.0, Material Design 3
-- **Media**: image_picker ^1.0.7, flutter_image_compress ^2.2.0, cached_network_image ^3.3.1
-- **Video**: video_player ^2.9.2, chewie ^1.8.5
-- **Calendar**: table_calendar ^3.0.9
-- **Development**: device_preview ^1.3.1
+### Firebase Integration Patterns
+```dart
+// Always check authentication before operations
+final user = FirebaseAuth.instance.currentUser;
+if (user == null) throw Exception('User not authenticated');
 
-## Development Tools
-- **Linting**: flutter_lints ^5.0.0 (standard Flutter linting rules)
-- **Testing**: mockito ^5.4.4, build_runner ^2.4.9, fake_cloud_firestore ^3.0.3, firebase_auth_mocks ^0.14.0
-- **Functions Testing**: jest ^29.7.0, firebase-functions-test ^3.1.0
+// Use proper error handling for all Firebase operations
+try {
+  await FirebaseFirestore.instance.collection('users').doc(user.uid).set(data);
+} on FirebaseException catch (e) {
+  // Handle specific Firebase errors
+}
 
-## Common Commands
+// Dispose streams properly
+StreamSubscription? _subscription;
+@override
+void dispose() {
+  _subscription?.cancel();
+  super.dispose();
+}
+```
 
-### Flutter Development
+### Media Handling Requirements
+- **Compression**: All media MUST be compressed before upload using `flutter_image_compress`
+- **Permissions**: Check permissions before accessing camera/microphone
+- **Progress Tracking**: Show upload progress for all media operations
+- **Caching**: Use `cached_network_image` for all network images
+- **Error Recovery**: Provide fallback UI when media operations fail
+
+### Service Layer Architecture
+- Services are singletons that wrap Firebase operations
+- All service methods return `Future<T>` or `Stream<T>`
+- Services handle authentication checks internally
+- Use dependency injection pattern for testability
+
+### Accessibility Implementation (WCAG 2.1 AA Required)
+```dart
+// Every interactive widget needs semantic labels
+Semantics(
+  label: 'Record audio message',
+  button: true,
+  child: IconButton(onPressed: _recordAudio, icon: Icon(Icons.mic)),
+)
+
+// Use design system colors that meet contrast requirements
+Container(
+  color: AppColors.primary, // Pre-validated for accessibility
+  child: Text('Content', style: AppTypography.bodyLarge),
+)
+```
+
+### Error Handling Patterns
+```dart
+// Service layer error handling
+class DiaryService {
+  Future<DiaryEntry> createEntry(DiaryEntry entry) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw AuthException('User not authenticated');
+      
+      final docRef = await FirebaseFirestore.instance
+          .collection('diary_entries')
+          .add(entry.toJson());
+      
+      return entry.copyWith(id: docRef.id);
+    } on FirebaseException catch (e) {
+      throw DiaryException('Failed to create entry: ${e.message}');
+    }
+  }
+}
+```
+
+### Testing Requirements
+- **Unit Tests**: All services must have >80% coverage using `mockito`
+- **Widget Tests**: Custom widgets require widget tests with accessibility validation
+- **Integration Tests**: Critical flows tested with `firebase_auth_mocks` and `fake_cloud_firestore`
+- **Accessibility Tests**: Use `flutter test --accessibility` for all UI components
+
+### Development Commands
 ```bash
-# Install dependencies
-flutter pub get
+# Development with emulators
+flutter run --dart-define=USE_EMULATOR=true
 
-# Run app in development
-flutter run
-
-# Run with device preview (responsive testing)
+# Run with device preview for responsive testing
 flutter run --dart-define=DEVICE_PREVIEW=true
 
-# Build for production
-flutter build apk --release
-flutter build ios --release
-
-# Run tests
-flutter test
+# Test with coverage
 flutter test --coverage
 
-# Analyze code
-flutter analyze
-
-# Format code
-dart format .
+# Firebase emulator setup
+firebase emulators:start --only auth,firestore,functions,storage
 ```
 
-### Firebase Functions
-```bash
-# Navigate to functions directory first
-cd functions
-
-# Install dependencies
-npm install
-
-# Start local emulator
-npm run serve
-# or
-firebase emulators:start --only functions
-
-# Deploy functions
-npm run deploy
-# or
-firebase deploy --only functions
-
-# Run tests
-npm test
-npm run test:coverage
-
-# View logs
-npm run logs
-```
-
-### Firebase Emulator Suite
-```bash
-# Start all emulators (from project root)
-firebase emulators:start
-
-# Start specific emulators
-firebase emulators:start --only auth,firestore,functions
-
-# Access emulator UI at http://localhost:4000
-```
-
-## Architecture Patterns
-- **Clean Architecture**: Separation of concerns with services, models, and UI layers
-- **Provider/State Management**: Implicit state management through Firebase streams
-- **Repository Pattern**: Service classes handle data access and business logic
-- **Design System**: Centralized theming and component system in `lib/design_system/`
-
-## Code Style
-- Follows `package:flutter_lints/flutter.yaml` standards
-- Material Design 3 principles
-- Comprehensive accessibility implementation (WCAG 2.1 AA)
-- Professional UI with Inter/Roboto typography
-- 8px grid-based spacing system
+### Performance Guidelines
+- Use `ListView.builder` for large lists (>20 items)
+- Implement proper image sizing with `cached_network_image`
+- Dispose controllers and streams in widget `dispose()` methods
+- Use `const` constructors wherever possible
+- Profile memory usage for media-heavy features
