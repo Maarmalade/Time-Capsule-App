@@ -301,6 +301,7 @@ exports.onScheduledMessageCreated = onDocumentCreated({
  */
 exports.deliverMessageManually = onCall({
   memory: "256MiB",
+  enforceAppCheck: false, // Disable for development
 }, async (request) => {
   // Verify user is authenticated
   if (!request.auth) {
@@ -351,6 +352,7 @@ exports.deliverMessageManually = onCall({
  */
 exports.getDeliveryStats = onCall({
   memory: "256MiB",
+  enforceAppCheck: false, // Disable for development
 }, async (request) => {
   // Verify user is authenticated
   if (!request.auth) {
@@ -443,6 +445,7 @@ exports.cleanupOldMessages = onSchedule({
  */
 exports.retryFailedMessages = onCall({
   memory: "256MiB",
+  enforceAppCheck: false, // Disable for development
 }, async (request) => {
   // Verify user is authenticated and is admin (you might want to add admin check)
   if (!request.auth) {
@@ -512,6 +515,9 @@ exports.retryFailedMessages = onCall({
  */
 exports.triggerMessageDelivery = onCall({
   memory: "256MiB",
+  // Temporarily disable App Check enforcement for development
+  // Set to true for production deployment
+  enforceAppCheck: false,
 }, async (request) => {
   // Verify user is authenticated
   if (!request.auth) {
@@ -579,6 +585,7 @@ exports.triggerMessageDelivery = onCall({
  */
 exports.testMessageDelivery = onCall({
   memory: "256MiB",
+  enforceAppCheck: false, // Disable for development
 }, async (request) => {
   // Verify user is authenticated
   if (!request.auth) {

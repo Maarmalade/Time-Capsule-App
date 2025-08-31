@@ -107,6 +107,38 @@
       ]
     },
     {
+      "collectionGroup": "folders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "parentFolderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "folders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "parentFolderId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "scheduledMessages",
       "queryScope": "COLLECTION",
       "fields": [
@@ -157,11 +189,19 @@
       ]
     },
     {
-      "collectionGroup": "users",
+      "collectionGroup": "scheduledMessages",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "username",
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "scheduledFor",
           "order": "ASCENDING"
         }
       ]

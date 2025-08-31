@@ -54,5 +54,6 @@
 	<string>Time Capsule needs photo library access to select existing photos and videos for your memory albums.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Time Capsule needs permission to save captured photos and videos to your photo library.</string>
+
 </dict>
 </plist>

@@ -180,7 +180,7 @@ class SocialErrorHandler extends ErrorHandler {
     final message = customMessage ?? 
         'Too many requests. Please wait $timeText before trying again.';
     
-    ErrorHandler.showErrorSnackBar(context, message);
+    ErrorHandler.showErrorSnackBar(context, message: message);
   }
 
   /// Shows permission error with helpful guidance
@@ -192,7 +192,7 @@ class SocialErrorHandler extends ErrorHandler {
     final message = 'You do not have permission to $action.';
     final fullMessage = suggestion != null ? '$message $suggestion' : message;
     
-    ErrorHandler.showErrorSnackBar(context, fullMessage);
+    ErrorHandler.showErrorSnackBar(context, message: fullMessage);
   }
 
   /// Shows validation error with field-specific messaging
@@ -202,7 +202,7 @@ class SocialErrorHandler extends ErrorHandler {
     required String error,
   }) {
     final message = '$field: $error';
-    ErrorHandler.showErrorSnackBar(context, message);
+    ErrorHandler.showErrorSnackBar(context, message: message);
   }
 
   /// Handles and displays social operation errors
@@ -241,7 +241,7 @@ class SocialErrorHandler extends ErrorHandler {
     } else if (onRetry != null && _isRetryableError(error)) {
       showErrorWithRetry(context, message: message, onRetry: onRetry);
     } else {
-      ErrorHandler.showErrorSnackBar(context, message);
+      ErrorHandler.showErrorSnackBar(context, message: message);
     }
   }
 

@@ -17,12 +17,16 @@ service cloud.firestore {
              username.matches('^[a-zA-Z0-9_]+$');
     }
     
-    // Users collection - extended for social features
+    // Users collection - extended for social features and FCM tokens
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) && 
                       (request.resource.data.keys().hasAll(['email', 'username']) &&
                        isValidUsername(request.resource.data.username));
+      
+      // Allow FCM token updates
+      allow update: if isOwner(userId) && 
+                       request.writeFields.hasOnly(['fcmToken', 'fcmTokenUpdatedAt', 'platform']);
     }
     
     // Friend Requests collection
@@ -97,6 +101,10 @@ service cloud.firestore {
       // Read access: owner, contributors, or anyone if public
       allow read: if isAuthenticated() && canAccessFolder();
       
+      // List access: authenticated users can query folders
+      // Note: This allows the query but individual documents are still filtered by read rules
+      allow list: if isAuthenticated();
+      
       // Create access: authenticated users can create their own folders
       allow create: if isAuthenticated() && 
                        request.resource.data.userId == request.auth.uid &&
@@ -118,6 +126,9 @@ service cloud.firestore {
                        get(/databases/$(database)/documents/folders/$(folderId)).data.userId == request.auth.uid ||
                        request.auth.uid in get(/databases/$(database)/documents/folders/$(folderId)).data.contributorIds ||
                        get(/databases/$(database)/documents/folders/$(folderId)).data.isPublic == true;
+        
+        // List access: allow authenticated users to query, individual access controlled by read rules
+        allow list: if isAuthenticated();
         
         // Create access: owner or contributors (if folder not locked)
         allow create: if isAuthenticated() && 
@@ -167,6 +178,33 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && 
                        resource.data.senderId == request.auth.uid &&
                        resource.data.status == 'pending';
+    }
+
+    // FCM Tokens collection
+    match /fcm_tokens/{tokenId} {
+      // Read access: users can only read their own tokens
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      
+      // Create access: users can create tokens for themselves
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['userId', 'token', 'lastUpdated', 'platform']) &&
+                       request.resource.data.token is string &&
+                       request.resource.data.token.size() > 0 &&
+                       request.resource.data.platform is string &&
+                       request.resource.data.platform in ['android', 'ios', 'web', 'windows', 'macos', 'linux'] &&
+                       request.resource.data.lastUpdated is timestamp;
+      
+      // Update access: users can update their own tokens
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.keys().hasAll(['userId', 'token', 'lastUpdated', 'platform']);
+      
+      // Delete access: users can delete their own tokens
+      allow delete: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid;
     }
   }
 }

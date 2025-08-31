@@ -31,25 +31,44 @@ class PermissionService {
   /// Request storage permission for file access
   static Future<bool> requestStoragePermission() async {
     try {
-      // For Android 13+ (API 33+), we need to request specific media permissions
-      if (await _isAndroid13OrHigher()) {
-        final photos = await Permission.photos.request();
-        final videos = await Permission.videos.request();
-        final audio = await Permission.audio.request();
-        
-        // At least one media permission should be granted
-        return photos.isGranted || videos.isGranted || audio.isGranted;
-      } else {
-        // For older Android versions, request storage permission
-        final status = await Permission.storage.request();
-        return status.isGranted;
+      // Always try legacy storage permission first as it's more reliable
+      final storage = await Permission.storage.request();
+      debugPrint('Storage permission status: $storage');
+      
+      if (storage.isGranted) {
+        debugPrint('Legacy storage permission granted, using that');
+        return true;
       }
+      
+      // If legacy storage fails, try Android 13+ permissions
+      if (await _isAndroid13OrHigher()) {
+        debugPrint('Trying Android 13+ media permissions...');
+        
+        // Request photos permission first (most common use case)
+        final photos = await Permission.photos.request();
+        debugPrint('Photos permission status: $photos');
+        
+        if (photos.isGranted) {
+          return true;
+        }
+        
+        // If photos permission denied, try videos
+        final videos = await Permission.videos.request();
+        debugPrint('Videos permission status: $videos');
+        
+        return videos.isGranted;
+      }
+      
+      return false;
     } catch (e) {
-      // Fallback: try basic storage permission
+      debugPrint('Error requesting storage permission: $e');
+      // Final fallback: try basic storage permission one more time
       try {
         final status = await Permission.storage.request();
+        debugPrint('Final fallback storage permission status: $status');
         return status.isGranted;
       } catch (e2) {
+        debugPrint('Final fallback storage permission error: $e2');
         return false;
       }
     }
@@ -70,23 +89,35 @@ class PermissionService {
   /// Check if storage permission is granted
   static Future<bool> isStoragePermissionGranted() async {
     try {
+      // Always check legacy storage permission first
+      final storage = await Permission.storage.status;
+      debugPrint('Storage permission status: $storage');
+      
+      if (storage.isGranted) {
+        return true;
+      }
+      
+      // If legacy storage not granted, check Android 13+ permissions
       if (await _isAndroid13OrHigher()) {
         final photos = await Permission.photos.status;
         final videos = await Permission.videos.status;
-        final audio = await Permission.audio.status;
+        
+        debugPrint('Android 13+ permission status - Photos: $photos, Videos: $videos');
         
         // At least one media permission should be granted
-        return photos.isGranted || videos.isGranted || audio.isGranted;
-      } else {
-        final status = await Permission.storage.status;
-        return status.isGranted;
+        return photos.isGranted || videos.isGranted;
       }
+      
+      return false;
     } catch (e) {
+      debugPrint('Error checking storage permission: $e');
       // Fallback: check basic storage permission
       try {
         final status = await Permission.storage.status;
+        debugPrint('Fallback storage permission status: $status');
         return status.isGranted;
       } catch (e2) {
+        debugPrint('Fallback storage permission check error: $e2');
         return false;
       }
     }
@@ -187,10 +218,18 @@ class PermissionService {
 
   /// Helper method to check if running on Android 13 or higher
   static Future<bool> _isAndroid13OrHigher() async {
-    // This is a simplified check - in a real implementation,
-    // you might want to use platform_device_id or similar package
-    // For now, we'll assume we need to handle both cases
-    return true; // Conservative approach - always use new permissions
+    try {
+      // Check if the new media permissions are available and working
+      final photosStatus = await Permission.photos.status;
+      debugPrint('Android 13+ photos permission check: $photosStatus');
+      
+      // If we can check the status without error, Android 13+ permissions are available
+      return true;
+    } catch (e) {
+      // New permissions not available, use legacy storage permission
+      debugPrint('Android 13+ permissions not available, using legacy storage permission: $e');
+      return false;
+    }
   }
 
   /// Get user-friendly permission name for display

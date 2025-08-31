@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../utils/comprehensive_error_handler.dart';
-import '../utils/validation_utils.dart';
+import '../utils/error_handler.dart';
+
 import '../services/video_integration_service.dart';
 
 class MediaAttachmentWidget extends StatefulWidget {
@@ -174,20 +174,21 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       if (pickedFile != null) {
         final File file = File(pickedFile.path);
         
-        // Enhanced file validation using comprehensive error handler
-        final validationError = await ComprehensiveErrorHandler.validateFileForUpload(
-          file,
-          expectedType: 'image',
-          maxSizeBytes: widget.maxImageSizeMB * 1024 * 1024,
-          allowedExtensions: ValidationUtils.allowedImageExtensions,
-        );
-
-        if (validationError != null) {
+        // Basic file validation
+        final fileSize = await file.length();
+        final maxSize = widget.maxImageSizeMB * 1024 * 1024;
+        
+        if (fileSize > maxSize) {
           setState(() {
-            _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(
-              validationError, 
-              mediaType: 'image'
-            );
+            _validationError = 'Image file is too large. Maximum size is ${widget.maxImageSizeMB}MB.';
+          });
+          return;
+        }
+        
+        final extension = file.path.toLowerCase().split('.').last;
+        if (!['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
+          setState(() {
+            _validationError = 'Please select a valid image file (JPG, PNG, GIF, WebP).';
           });
           return;
         }
@@ -197,7 +198,7 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       }
     } catch (e) {
       setState(() {
-        _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(e, mediaType: 'image');
+        _validationError = 'Failed to select image: ${ErrorHandler.getErrorMessage(e)}';
       });
     }
   }
@@ -216,20 +217,21 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       if (pickedFile != null) {
         final File file = File(pickedFile.path);
         
-        // Enhanced file validation using comprehensive error handler
-        final validationError = await ComprehensiveErrorHandler.validateFileForUpload(
-          file,
-          expectedType: 'video',
-          maxSizeBytes: widget.maxVideoSizeMB * 1024 * 1024,
-          allowedExtensions: ValidationUtils.allowedVideoExtensions,
-        );
-
-        if (validationError != null) {
+        // Basic file validation
+        final fileSize = await file.length();
+        final maxSize = widget.maxVideoSizeMB * 1024 * 1024;
+        
+        if (fileSize > maxSize) {
           setState(() {
-            _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(
-              validationError, 
-              mediaType: 'video'
-            );
+            _validationError = 'Video file is too large. Maximum size is ${widget.maxVideoSizeMB}MB.';
+          });
+          return;
+        }
+        
+        final extension = file.path.toLowerCase().split('.').last;
+        if (!['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extension)) {
+          setState(() {
+            _validationError = 'Please select a valid video file (MP4, MOV, AVI, MKV, WebM).';
           });
           return;
         }
@@ -238,7 +240,7 @@ class _MediaAttachmentWidgetState extends State<MediaAttachmentWidget> {
       }
     } catch (e) {
       setState(() {
-        _validationError = ComprehensiveErrorHandler.getMediaUploadErrorMessage(e, mediaType: 'video');
+        _validationError = 'Failed to select video: ${ErrorHandler.getErrorMessage(e)}';
       });
     }
   }

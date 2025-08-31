@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../widgets/home_panel_card.dart';
 import '../../services/media_service.dart';
+import '../../services/nostalgia_reminder_service.dart';
 import '../../models/diary_entry_model.dart';
 import '../diary/diary_viewer_page.dart';
-
+import '../../design_system/app_colors.dart';
+import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
 
 class HomePanelGrid extends StatelessWidget {
@@ -16,6 +18,51 @@ class HomePanelGrid extends StatelessWidget {
     required this.navigate, 
     super.key,
   });
+
+  void _showThrowbackMessage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surfacePrimary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.history,
+              color: AppColors.primaryAccent,
+              size: 24,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Throwback',
+              style: AppTypography.headlineSmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          NostalgiaReminderService.getThrowbackMessage(),
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.primaryAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +94,9 @@ class HomePanelGrid extends StatelessWidget {
             onTap: () => navigate(context, '/digital_diary', 'Digital Diary'),
           ),
         ];
+        
         if (hasFavorites && favoriteEntry != null) {
-          // Get the first image attachment if available
+          // Show favorite entry (existing logic)
           final imageAttachment = favoriteEntry.attachments
               .where((a) => a.type == 'image')
               .firstOrNull;
@@ -77,14 +125,15 @@ class HomePanelGrid extends StatelessWidget {
             ),
           );
         } else {
-          // Add a blank card if no favorites
+          // Show throwback card when no favorites exist
           cards.add(
             HomePanelCard(
-              text: '',
-              onTap: () {},
+              text: 'Throwback',
+              onTap: () => _showThrowbackMessage(context),
             ),
           );
         }
+        
         return GridView.count(
           crossAxisCount: 2,
           mainAxisSpacing: AppSpacing.lg,

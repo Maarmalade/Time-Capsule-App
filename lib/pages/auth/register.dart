@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/route_constants.dart';
 import '../../design_system/app_colors.dart';
 import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
+import '../../services/auth_service.dart';
+import '../../utils/error_handler.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -16,6 +17,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _authService = AuthService();
 
   String _error = '';
   bool _loading = false;
@@ -34,34 +36,38 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    final result = await _authService.createUserWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      setState(() {
-        _loading = false;
-      });
+    setState(() {
+      _loading = false;
+    });
 
+    if (result.isSuccess) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Account created!',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.primaryWhite,
-            ),
-          ),
-          backgroundColor: AppColors.successGreen,
-        ),
+      
+      // Show success message
+      ErrorHandler.showSuccessSnackBar(
+        context, 
+        result.message ?? 'Account created successfully!'
       );
+      
       Navigator.pushReplacementNamed(context, Routes.usernameSetup);
-    } on FirebaseAuthException catch (e) {
+    } else {
       setState(() {
-        _error = e.message ?? 'Registration failed';
-        _loading = false;
+        _error = result.error ?? 'Registration failed. Please try again.';
       });
+      
+      // Show user-friendly error message
+      if (mounted) {
+        ErrorHandler.showErrorSnackBar(
+          context,
+          message: _error,
+          onRetry: _register,
+        );
+      }
     }
   }
 

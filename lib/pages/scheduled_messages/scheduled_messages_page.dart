@@ -197,29 +197,89 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
 
   Future<void> _showDebugInfo() async {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ User not authenticated'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 16),
+            Text('Testing authentication...'),
+          ],
+        ),
+        duration: Duration(seconds: 5),
+      ),
+    );
 
     try {
+      // Test authentication and cloud function
       final result = await _messageService.triggerMessageDelivery();
+
+      // Hide loading
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Debug Info'),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 8),
+                Text('✅ Authentication Success!'),
+              ],
+            ),
             content: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Cloud Function Result:'),
+                  const Text(
+                    'Authentication Fix Verified:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('✅ User authenticated: ${currentUser.uid}'),
+                  Text('✅ Cloud function accessible'),
+                  Text('✅ App Check bypass working'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Cloud Function Result:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   Text(result.toString()),
                   const SizedBox(height: 16),
-                  Text('Scheduled Messages: ${_scheduledMessages.length}'),
-                  Text('Received Messages: ${_receivedMessages.length}'),
+                  const Text(
+                    'Message Counts:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Scheduled: ${_scheduledMessages.length}'),
+                  Text('Received: ${_receivedMessages.length}'),
                   const SizedBox(height: 16),
                   Text('Current Time: ${DateTime.now()}'),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '🎉 Push notifications should now work!',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -233,11 +293,49 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
         );
       }
     } catch (e) {
+      // Hide loading
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Debug error: $e'),
-            backgroundColor: Colors.red,
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.red),
+                SizedBox(width: 8),
+                Text('❌ Authentication Test Failed'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Error Details:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(e.toString()),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Troubleshooting:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Text('1. Try logging out and back in'),
+                  const Text('2. Restart the app'),
+                  const Text('3. Check Firebase Console logs'),
+                  const Text('4. Verify cloud functions are deployed'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
         );
       }

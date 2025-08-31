@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/user_profile.dart';
 import '../services/profile_picture_service.dart';
-import '../utils/comprehensive_error_handler.dart';
+import '../utils/error_handler.dart';
 
 class ProfilePictureWidget extends StatefulWidget {
   final UserProfile? userProfile;
@@ -108,7 +108,7 @@ class _ProfilePictureWidgetState extends State<ProfilePictureWidget> {
           ),
           errorWidget: (context, url, error) {
             // Enhanced error handling for profile picture loading
-            debugPrint('Profile picture loading error for ${widget.userProfile?.id}: ${ComprehensiveErrorHandler.getProfilePictureErrorMessage(error)}');
+            debugPrint('Profile picture loading error for ${widget.userProfile?.id}: ${ErrorHandler.getErrorMessage(error)}');
             
             // Try to get cached version as fallback
             if (widget.userProfile?.id != null) {
@@ -139,7 +139,7 @@ class _ProfilePictureWidgetState extends State<ProfilePictureWidget> {
       }
     } catch (e) {
       // Enhanced error handling for widget-level errors
-      debugPrint('Profile picture widget error for ${widget.userProfile?.id}: ${ComprehensiveErrorHandler.getProfilePictureErrorMessage(e)}');
+      debugPrint('Profile picture widget error for ${widget.userProfile?.id}: ${ErrorHandler.getErrorMessage(e)}');
       avatar = _buildDefaultAvatarWithErrorIndicator(theme);
     }
 

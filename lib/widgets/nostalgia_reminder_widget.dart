@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/media_service.dart';
+import '../services/nostalgia_reminder_service.dart';
 import '../models/diary_entry_model.dart';
 import '../pages/diary/diary_viewer_page.dart';
 import '../design_system/app_colors.dart';
@@ -30,6 +31,51 @@ class _NostalgiaReminderWidgetState extends State<NostalgiaReminderWidget> {
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _showThrowbackMessage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surfacePrimary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.history,
+              color: AppColors.primaryAccent,
+              size: 24,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Throwback',
+              style: AppTypography.headlineSmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          NostalgiaReminderService.getThrowbackMessage(),
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.primaryAccent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _playAudio(String audioUrl, String entryId) async {
@@ -214,8 +260,94 @@ class _NostalgiaReminderWidgetState extends State<NostalgiaReminderWidget> {
         }
         
         final entries = snapshot.data ?? [];
+        
+        // Show throwback card when no favorites exist
         if (entries.isEmpty) {
-          return const SizedBox.shrink();
+          return Semantics(
+            label: AccessibilityUtils.createSemanticLabel(
+              label: 'Throwback',
+              hint: 'No favourited entries from past years. Tap to learn more',
+              isButton: true,
+            ),
+            button: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.history,
+                        color: AppColors.favoriteYellow,
+                        size: 24,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Throwback',
+                        style: AppTypography.headlineSmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: GestureDetector(
+                    onTap: () => _showThrowbackMessage(context),
+                    child: Container(
+                      width: double.infinity,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfacePrimary,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                        border: Border.all(
+                          color: AppColors.favoriteYellow.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.shadowLight,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.favorite_border,
+                            size: 32,
+                            color: AppColors.favoriteYellow,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'No favourited memories yet',
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Tap to learn more',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+            ),
+          );
         }
 
         return Semantics(

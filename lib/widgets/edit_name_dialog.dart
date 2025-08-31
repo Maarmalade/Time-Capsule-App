@@ -65,7 +65,7 @@ class _EditNameDialogState extends State<EditNameDialog> {
     // Validate the name
     final validationError = ValidationUtils.validateFileName(newName);
     if (validationError != null) {
-      ErrorHandler.showErrorSnackBar(context, validationError);
+      ErrorHandler.showErrorSnackBar(context, message: validationError);
       return;
     }
     
@@ -78,7 +78,7 @@ class _EditNameDialogState extends State<EditNameDialog> {
     // Sanitize the name
     final sanitizedName = ValidationUtils.sanitizeText(newName);
     if (!ValidationUtils.isSafeForDisplay(sanitizedName)) {
-      ErrorHandler.showErrorSnackBar(context, 'Name contains invalid characters');
+      ErrorHandler.showErrorSnackBar(context, message: 'Name contains invalid characters');
       return;
     }
     

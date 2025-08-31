@@ -5,8 +5,11 @@ import 'dart:io';
 import '../../models/user_profile.dart';
 import '../../services/user_profile_service.dart';
 import '../../services/profile_picture_service.dart';
+import '../../services/auth_state_manager.dart';
 import '../../widgets/profile_picture_widget.dart';
 import '../../constants/route_constants.dart';
+import '../../design_system/app_colors.dart';
+import '../../utils/error_handler.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -140,6 +143,127 @@ class _ProfilePageState extends State<ProfilePage> {
         );
       },
     );
+  }
+
+  /// Show logout confirmation dialog
+  Future<void> _showLogoutConfirmation() async {
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text(
+            'Are you sure you want to logout? You will need to sign in again to access your account.',
+          ),
+          actions: [
+            Semantics(
+              button: true,
+              label: 'Cancel logout',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: 'Confirm logout',
+              hint: 'This will sign you out of your account',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.errorRed,
+                ),
+                child: const Text('Logout'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout == true) {
+      await _performLogout();
+    }
+  }
+
+  /// Perform logout using AuthStateManager
+  Future<void> _performLogout() async {
+    try {
+      // Show loading indicator
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const AlertDialog(
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Signing out...'),
+                ],
+              ),
+            );
+          },
+        );
+      }
+
+      // Use AuthStateManager to sign out with retry logic
+      await ErrorHandler.retryOperation(
+        () => AuthStateManager.signOut(),
+        maxRetries: 3,
+        initialDelay: const Duration(seconds: 1),
+      );
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Navigation is handled by the StreamBuilder in main.dart
+      // No need to manually navigate here
+    } on FirebaseAuthException catch (e) {
+      // Close loading dialog if it's showing
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Handle authentication-specific errors
+      if (mounted) {
+        ErrorHandler.showErrorDialog(
+          context,
+          title: 'Logout Failed',
+          message: ErrorHandler.getAuthErrorMessage(e),
+          onRetry: _performLogout,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if it's showing
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Handle generic errors
+      if (mounted) {
+        if (ErrorHandler.isNetworkError(e)) {
+          ErrorHandler.showErrorSnackBar(
+            context,
+            message: 'Network error during logout. Please check your connection and try again.',
+            onRetry: _performLogout,
+          );
+        } else {
+          ErrorHandler.showErrorDialog(
+            context,
+            title: 'Logout Error',
+            message: 'An unexpected error occurred during logout. Please try again.',
+            onRetry: _performLogout,
+          );
+        }
+      }
+      
+      ErrorHandler.logError('ProfilePage._performLogout', e);
+    }
   }
 
   Widget _buildProfilePicture() {
@@ -306,6 +430,14 @@ class _ProfilePageState extends State<ProfilePage> {
           subtitle: 'Update your profile photo',
           onTap: _updateProfilePicture,
         ),
+        const SizedBox(height: 12),
+        _buildActionCard(
+          icon: Icons.logout,
+          title: 'Logout',
+          subtitle: 'Sign out of your account',
+          onTap: _showLogoutConfirmation,
+          isDestructive: true,
+        ),
       ],
     );
   }
@@ -315,22 +447,44 @@ class _ProfilePageState extends State<ProfilePage> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    bool isDestructive = false,
   }) {
-    return Card(
-      elevation: 2,
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+    final iconColor = isDestructive ? AppColors.errorRed : Theme.of(context).primaryColor;
+    final titleColor = isDestructive ? AppColors.errorRed : null;
+    final backgroundColor = isDestructive 
+        ? AppColors.errorRedLight 
+        : Theme.of(context).primaryColor.withValues(alpha: 0.1);
+
+    return Semantics(
+      button: true,
+      label: '$title. $subtitle',
+      hint: isDestructive ? 'This action will sign you out of your account' : null,
+      child: Card(
+        elevation: 2,
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor),
           ),
-          child: Icon(icon, color: Theme.of(context).primaryColor),
+          title: Text(
+            title, 
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: titleColor,
+            ),
+          ),
+          subtitle: Text(subtitle),
+          trailing: Icon(
+            Icons.arrow_forward_ios, 
+            size: 16,
+            color: isDestructive ? AppColors.errorRed : null,
+          ),
+          onTap: onTap,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
       ),
     );
   }

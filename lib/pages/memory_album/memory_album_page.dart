@@ -292,7 +292,7 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ErrorHandler.showErrorSnackBar(
             context,
-            ErrorHandler.getErrorMessage(e),
+            message: ErrorHandler.getErrorMessage(e),
           );
         }
       }
@@ -323,7 +323,7 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
         if (mounted) {
           ErrorHandler.showErrorSnackBar(
             context,
-            ErrorHandler.getErrorMessage(e),
+            message: ErrorHandler.getErrorMessage(e),
           );
         }
       }
@@ -355,7 +355,7 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
         if (mounted) {
           ErrorHandler.showErrorSnackBar(
             context,
-            ErrorHandler.getErrorMessage(e),
+            message: ErrorHandler.getErrorMessage(e),
           );
         }
       }

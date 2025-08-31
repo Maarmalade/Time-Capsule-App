@@ -6,9 +6,8 @@ import 'package:flutter/foundation.dart';
 import '../models/scheduled_message_model.dart';
 import '../utils/social_validation_utils.dart';
 import '../utils/social_error_handler.dart';
-import '../utils/comprehensive_error_handler.dart';
-import '../utils/rate_limiter.dart';
 import '../utils/error_handler.dart';
+import '../utils/rate_limiter.dart';
 import '../utils/validation_utils.dart';
 import 'storage_service.dart';
 
@@ -36,14 +35,7 @@ class ScheduledMessageService {
       throw Exception('User must be logged in to upload media');
     }
 
-    // Check network connectivity before starting uploads
-    final hasNetwork =
-        await ComprehensiveErrorHandler.validateNetworkConnectivity();
-    if (!hasNetwork) {
-      throw Exception(
-        'No internet connection. Please check your network and try again.',
-      );
-    }
+    // Basic network check - we'll rely on Firebase SDK to handle network errors
 
     final uploadedUrls = <String>[];
     final errors = <String>[];
@@ -52,35 +44,28 @@ class ScheduledMessageService {
       final file = mediaFiles[i];
 
       try {
-        // Enhanced file validation
+        // Basic file validation
         final fileName = file.path.toLowerCase();
         final extension = fileName.substring(fileName.lastIndexOf('.'));
+        final fileSize = await file.length();
 
-        String? validationError;
-        if (ValidationUtils.allowedImageExtensions.contains(extension)) {
-          validationError =
-              await ComprehensiveErrorHandler.validateFileForUpload(
-                file,
-                expectedType: 'image',
-                maxSizeBytes: ValidationUtils.maxImageSize,
-                allowedExtensions: ValidationUtils.allowedImageExtensions,
-              );
-        } else if (ValidationUtils.allowedVideoExtensions.contains(extension)) {
-          validationError =
-              await ComprehensiveErrorHandler.validateFileForUpload(
-                file,
-                expectedType: 'video',
-                maxSizeBytes: ValidationUtils.maxVideoSize,
-                allowedExtensions: ValidationUtils.allowedVideoExtensions,
-              );
-        } else {
-          validationError =
-              'Unsupported file type. Only images (${ValidationUtils.allowedImageExtensions.join(', ')}) and videos (${ValidationUtils.allowedVideoExtensions.join(', ')}) are allowed.';
+        // Check file type
+        final isImage = ValidationUtils.allowedImageExtensions.contains(extension);
+        final isVideo = ValidationUtils.allowedVideoExtensions.contains(extension);
+        
+        if (!isImage && !isVideo) {
+          errors.add(
+            'File ${i + 1}: Unsupported file type. Only images (${ValidationUtils.allowedImageExtensions.join(', ')}) and videos (${ValidationUtils.allowedVideoExtensions.join(', ')}) are allowed.',
+          );
+          continue;
         }
 
-        if (validationError != null) {
+        // Check file size
+        final maxSize = isImage ? ValidationUtils.maxImageSize : ValidationUtils.maxVideoSize;
+        if (fileSize > maxSize) {
+          final maxSizeMB = (maxSize / (1024 * 1024)).round();
           errors.add(
-            'File ${i + 1}: ${ComprehensiveErrorHandler.getMediaUploadErrorMessage(validationError, mediaType: extension.contains('mp4') || extension.contains('mov') ? 'video' : 'image')}',
+            'File ${i + 1}: File is too large. Maximum size is ${maxSizeMB}MB.',
           );
           continue;
         }
@@ -90,29 +75,20 @@ class ScheduledMessageService {
         final mediaPath =
             'scheduled_messages/${currentUser.uid}/$timestamp-$i$extension';
 
-        // Upload with enhanced retry mechanism and fallback
-        final uploadUrl = await ComprehensiveErrorHandler.withFallback<String>(
-          () async => await _storageService.uploadFile(file, mediaPath),
-          null, // No fallback for media uploads
-          operationName: 'Media upload for file ${i + 1}',
+        // Upload with retry mechanism
+        final uploadUrl = await ErrorHandler.retryOperation(
+          () => _storageService.uploadFile(file, mediaPath),
           maxRetries: 3,
-          retryDelay: const Duration(seconds: 2),
+          initialDelay: const Duration(seconds: 2),
         );
 
-        if (uploadUrl != null) {
-          uploadedUrls.add(uploadUrl);
-        }
-      } catch (e) {
-        final errorMessage =
-            ComprehensiveErrorHandler.getMediaUploadErrorMessage(
-              e,
-              mediaType:
-                  file.path.toLowerCase().contains('mp4') ||
-                      file.path.toLowerCase().contains('mov')
-                  ? 'video'
-                  : 'image',
-            );
-        errors.add('File ${i + 1}: $errorMessage');
+        uploadedUrls.add(uploadUrl);
+            } catch (e) {
+        final mediaType = file.path.toLowerCase().contains('mp4') ||
+                file.path.toLowerCase().contains('mov')
+            ? 'video'
+            : 'image';
+        errors.add('File ${i + 1}: Failed to upload $mediaType: ${ErrorHandler.getErrorMessage(e)}');
       }
     }
 
@@ -256,9 +232,7 @@ class ScheduledMessageService {
 
       return null; // Time is valid
     } catch (e) {
-      return ComprehensiveErrorHandler.getScheduledTimeValidationErrorMessage(
-        e,
-      );
+      return 'Invalid scheduled time: ${ErrorHandler.getErrorMessage(e)}';
     }
   }
 
@@ -592,10 +566,24 @@ class ScheduledMessageService {
   /// Trigger cloud function to process ready messages
   Future<void> triggerCloudFunctionDelivery() async {
     try {
+      // Ensure user is authenticated before calling cloud function
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be authenticated to trigger cloud function');
+      }
+
+      // Wait for auth token to be ready
+      final idToken = await currentUser.getIdToken(true); // Force refresh
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Failed to get authentication token');
+      }
+
+      debugPrint('Triggering cloud function with authenticated user: ${currentUser.uid}');
       final result = await triggerMessageDelivery();
       debugPrint('Cloud function result: $result');
     } catch (e) {
       debugPrint('Failed to trigger cloud function: $e');
+      rethrow;
     }
   }
 

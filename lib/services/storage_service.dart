@@ -18,7 +18,7 @@ class StorageService {
         androidProvider: AndroidProvider.debug,
       );
     } catch (e) {
-      print('Failed to initialize App Check: $e');
+      debugPrint('Failed to initialize App Check: $e');
       // Continue without App Check in case of initialization failure
     }
   }
@@ -161,107 +161,458 @@ class StorageService {
     }
   }
 
-  /// Uploads a file to Firebase Storage with comprehensive error handling
-  Future<String> uploadFile(File file, String path, {String? expectedType}) async {
-    try {
-      // Validate file before upload
-      final validationError = ValidationUtils.validateFileUpload(file, expectedType: expectedType);
-      if (validationError != null) {
-        throw Exception(validationError);
+  /// Get appropriate content type for any file
+  String _getContentType(String filePath, String? expectedType) {
+    final extension = filePath.toLowerCase().split('.').last;
+    
+    // If expected type is provided, use specific logic
+    if (expectedType != null) {
+      switch (expectedType.toLowerCase()) {
+        case 'video':
+          return _getVideoContentType(filePath);
+        case 'image':
+          return _getImageContentType(extension);
+        case 'audio':
+          return _getAudioContentType(extension);
+        default:
+          break;
       }
-
-      // Validate path
-      if (path.isEmpty) {
-        throw Exception('Upload path cannot be empty');
-      }
-
-      // Sanitize path to prevent directory traversal
-      final sanitizedPath = path.replaceAll(RegExp(r'\.\.'), '').replaceAll('//', '/');
+    }
+    
+    // General content type detection
+    switch (extension) {
+      // Images
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
       
-      final ref = _storage.ref().child(sanitizedPath);
-      final uploadTask = await ref.putFile(file);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      // Videos
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+        return 'video/quicktime';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'webm':
+        return 'video/webm';
       
-      if (downloadUrl.isEmpty) {
-        throw Exception('Failed to get download URL after upload');
-      }
+      // Audio
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'm4a':
+        return 'audio/mp4';
+      case 'wav':
+        return 'audio/wav';
+      case 'aac':
+        return 'audio/aac';
       
-      return downloadUrl;
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception('Failed to upload file: ${ErrorHandler.getErrorMessage(e)}');
+      // Documents
+      case 'pdf':
+        return 'application/pdf';
+      case 'txt':
+        return 'text/plain';
+      
+      default:
+        return 'application/octet-stream';
     }
   }
 
-  /// Uploads file bytes to Firebase Storage with comprehensive error handling
-  Future<String> uploadFileBytes(Uint8List bytes, String path) async {
-    try {
-      // Validate inputs
-      if (bytes.isEmpty) {
-        throw Exception('File data is empty');
-      }
-
-      if (path.isEmpty) {
-        throw Exception('Upload path cannot be empty');
-      }
-
-      // Check file size
-      if (bytes.length > ValidationUtils.maxFileSize) {
-        throw Exception('File size exceeds maximum allowed size');
-      }
-
-      // Sanitize path
-      final sanitizedPath = path.replaceAll(RegExp(r'\.\.'), '').replaceAll('//', '/');
-      
-      final ref = _storage.ref().child(sanitizedPath);
-      final uploadTask = await ref.putData(bytes);
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      
-      if (downloadUrl.isEmpty) {
-        throw Exception('Failed to get download URL after upload');
-      }
-      
-      return downloadUrl;
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception('Failed to upload file: ${ErrorHandler.getErrorMessage(e)}');
+  /// Get image content type
+  String _getImageContentType(String extension) {
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
     }
   }
 
-  /// Deletes a file from Firebase Storage with comprehensive error handling
-  Future<void> deleteFile(String url) async {
-    try {
-      if (url.isEmpty) {
-        throw Exception('File URL cannot be empty');
-      }
-
-      // Validate URL format
-      if (!url.startsWith('https://') || !url.contains('firebasestorage.googleapis.com')) {
-        throw Exception('Invalid Firebase Storage URL');
-      }
-
-      final ref = _storage.refFromURL(url);
-      await ref.delete();
-    } on FirebaseException catch (e) {
-      // Don't throw error if file doesn't exist
-      if (e.code == 'object-not-found') {
-        return; // File already deleted or never existed
-      }
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception('Failed to delete file: ${ErrorHandler.getErrorMessage(e)}');
+  /// Get audio content type
+  String _getAudioContentType(String extension) {
+    switch (extension) {
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'm4a':
+        return 'audio/mp4';
+      case 'wav':
+        return 'audio/wav';
+      case 'aac':
+        return 'audio/aac';
+      case 'ogg':
+        return 'audio/ogg';
+      default:
+        return 'audio/mp4';
     }
+  }
+
+  /// Handle Firebase Storage specific errors
+  String _handleFirebaseStorageError(FirebaseException e) {
+    switch (e.code) {
+      case 'storage/unauthorized':
+        return 'Unauthorized access to storage. Please check your authentication.';
+      case 'storage/canceled':
+        return 'Upload was canceled';
+      case 'storage/unknown':
+        return 'Unknown storage error occurred. Please try again.';
+      case 'storage/invalid-format':
+        return 'Invalid file format. Please check the file type.';
+      case 'storage/invalid-event-name':
+        return 'Invalid storage operation';
+      case 'storage/invalid-url':
+        return 'Invalid storage URL';
+      case 'storage/invalid-argument':
+        return 'Invalid argument provided to storage operation';
+      case 'storage/no-default-bucket':
+        return 'No default storage bucket configured';
+      case 'storage/cannot-slice-blob':
+        return 'File processing error occurred';
+      case 'storage/server-file-wrong-size':
+        return 'File size mismatch during upload';
+      case 'storage/quota-exceeded':
+        return 'Storage quota exceeded. Please free up space or upgrade your plan.';
+      case 'storage/unauthenticated':
+        return 'Authentication required for storage access';
+      case 'storage/retry-limit-exceeded':
+        return 'Upload retry limit exceeded. Please try again later.';
+      case 'storage/invalid-checksum':
+        return 'File integrity check failed. Please try uploading again.';
+      case 'storage/object-not-found':
+        return 'File not found in storage';
+      default:
+        return 'Storage error: ${e.message ?? e.code}';
+    }
+  }
+
+  /// Determine if upload should be retried based on error
+  bool _shouldRetryUpload(FirebaseException e) {
+    // Don't retry for these error types
+    final nonRetryableErrors = [
+      'storage/unauthorized',
+      'storage/unauthenticated',
+      'storage/invalid-format',
+      'storage/invalid-argument',
+      'storage/quota-exceeded',
+      'storage/object-not-found',
+      'storage/no-default-bucket',
+    ];
+    
+    return !nonRetryableErrors.contains(e.code);
+  }
+
+  /// Uploads a file to Firebase Storage with comprehensive error handling and retry logic
+  Future<String> uploadFile(File file, String path, {
+    String? expectedType,
+    Function(double progress)? onProgress,
+    int maxRetries = 3,
+  }) async {
+    int retryCount = 0;
+    Exception? lastException;
+
+    while (retryCount < maxRetries) {
+      try {
+        // Validate file before upload
+        final validationError = ValidationUtils.validateFileUpload(file, expectedType: expectedType);
+        if (validationError != null) {
+          throw Exception(validationError);
+        }
+
+        // Validate path
+        if (path.isEmpty) {
+          throw Exception('Upload path cannot be empty');
+        }
+
+        // Check authentication
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) {
+          throw Exception('User must be authenticated to upload files');
+        }
+
+        // Sanitize path to prevent directory traversal
+        final sanitizedPath = path.replaceAll(RegExp(r'\.\.'), '').replaceAll('//', '/');
+        
+        final ref = _storage.ref().child(sanitizedPath);
+        
+        // Add metadata for better tracking
+        final metadata = SettableMetadata(
+          contentType: _getContentType(file.path, expectedType),
+          customMetadata: {
+            'uploadedBy': currentUser.uid,
+            'uploadedAt': DateTime.now().toIso8601String(),
+            'originalName': file.path.split('/').last,
+          },
+        );
+        
+        final uploadTask = ref.putFile(file, metadata);
+        
+        // Track upload progress
+        StreamSubscription<TaskSnapshot>? subscription;
+        if (onProgress != null) {
+          subscription = uploadTask.snapshotEvents.listen((snapshot) {
+            final progress = snapshot.totalBytes > 0 
+                ? snapshot.bytesTransferred / snapshot.totalBytes 
+                : 0.0;
+            onProgress(progress);
+          });
+        }
+        
+        try {
+          final snapshot = await uploadTask;
+          await subscription?.cancel();
+          
+          final downloadUrl = await snapshot.ref.getDownloadURL();
+          
+          if (downloadUrl.isEmpty) {
+            throw Exception('Failed to get download URL after upload');
+          }
+          
+          return downloadUrl;
+        } finally {
+          await subscription?.cancel();
+        }
+        
+      } on FirebaseException catch (e) {
+        lastException = Exception(_handleFirebaseStorageError(e));
+        
+        // Don't retry for certain error types
+        if (!_shouldRetryUpload(e)) {
+          throw lastException;
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Upload attempt $retryCount failed, retrying in ${retryCount * 2} seconds...');
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
+        
+      } catch (e) {
+        if (e is Exception) {
+          lastException = e;
+        } else {
+          lastException = Exception('Failed to upload file: ${ErrorHandler.getErrorMessage(e)}');
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Upload attempt $retryCount failed, retrying in ${retryCount * 2} seconds...');
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
+      }
+    }
+
+    throw lastException ?? Exception('Upload failed after $maxRetries attempts');
+  }
+
+  /// Uploads file bytes to Firebase Storage with comprehensive error handling and retry logic
+  Future<String> uploadFileBytes(
+    Uint8List bytes, 
+    String path, {
+    Function(double progress)? onProgress,
+    int maxRetries = 3,
+    String? contentType,
+  }) async {
+    int retryCount = 0;
+    Exception? lastException;
+
+    while (retryCount < maxRetries) {
+      try {
+        // Validate inputs
+        if (bytes.isEmpty) {
+          throw Exception('File data is empty');
+        }
+
+        if (path.isEmpty) {
+          throw Exception('Upload path cannot be empty');
+        }
+
+        // Check authentication
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) {
+          throw Exception('User must be authenticated to upload files');
+        }
+
+        // Check file size against different limits based on file type
+        final fileExtension = path.toLowerCase().split('.').last;
+        final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(fileExtension);
+        final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(fileExtension);
+        final isAudio = ['mp3', 'm4a', 'wav', 'aac', 'ogg'].contains(fileExtension);
+
+        int maxSize = ValidationUtils.maxFileSize;
+        if (isImage) {
+          maxSize = ValidationUtils.maxImageSize;
+        } else if (isVideo) {
+          maxSize = ValidationUtils.maxVideoSize;
+        } else if (isAudio) {
+          maxSize = ValidationUtils.maxAudioSize;
+        }
+
+        if (bytes.length > maxSize) {
+          final maxSizeMB = (maxSize / (1024 * 1024)).toStringAsFixed(0);
+          throw Exception('File size exceeds maximum allowed size of ${maxSizeMB}MB');
+        }
+
+        // Sanitize path
+        final sanitizedPath = path.replaceAll(RegExp(r'\.\.'), '').replaceAll('//', '/');
+        
+        final ref = _storage.ref().child(sanitizedPath);
+        
+        // Add metadata
+        final metadata = SettableMetadata(
+          contentType: contentType ?? _getContentType(path, null),
+          customMetadata: {
+            'uploadedBy': currentUser.uid,
+            'uploadedAt': DateTime.now().toIso8601String(),
+            'fileSize': bytes.length.toString(),
+          },
+        );
+        
+        final uploadTask = ref.putData(bytes, metadata);
+        
+        // Track upload progress
+        StreamSubscription<TaskSnapshot>? subscription;
+        if (onProgress != null) {
+          subscription = uploadTask.snapshotEvents.listen((snapshot) {
+            final progress = snapshot.totalBytes > 0 
+                ? snapshot.bytesTransferred / snapshot.totalBytes 
+                : 0.0;
+            onProgress(progress);
+          });
+        }
+        
+        try {
+          final snapshot = await uploadTask;
+          await subscription?.cancel();
+          
+          final downloadUrl = await snapshot.ref.getDownloadURL();
+          
+          if (downloadUrl.isEmpty) {
+            throw Exception('Failed to get download URL after upload');
+          }
+          
+          return downloadUrl;
+        } finally {
+          await subscription?.cancel();
+        }
+        
+      } on FirebaseException catch (e) {
+        lastException = Exception(_handleFirebaseStorageError(e));
+        
+        // Don't retry for certain error types
+        if (!_shouldRetryUpload(e)) {
+          throw lastException;
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Upload bytes attempt $retryCount failed, retrying in ${retryCount * 2} seconds...');
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
+        
+      } catch (e) {
+        if (e is Exception) {
+          lastException = e;
+        } else {
+          lastException = Exception('Failed to upload file: ${ErrorHandler.getErrorMessage(e)}');
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Upload bytes attempt $retryCount failed, retrying in ${retryCount * 2} seconds...');
+          await Future.delayed(Duration(seconds: retryCount * 2));
+        }
+      }
+    }
+
+    throw lastException ?? Exception('Upload failed after $maxRetries attempts');
+  }
+
+  /// Deletes a file from Firebase Storage with comprehensive error handling and retry logic
+  Future<void> deleteFile(String url, {int maxRetries = 2}) async {
+    int retryCount = 0;
+    Exception? lastException;
+
+    while (retryCount < maxRetries) {
+      try {
+        if (url.isEmpty) {
+          throw Exception('File URL cannot be empty');
+        }
+
+        // Validate URL format
+        if (!url.startsWith('https://') || !url.contains('firebasestorage.googleapis.com')) {
+          throw Exception('Invalid Firebase Storage URL');
+        }
+
+        // Check authentication
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) {
+          throw Exception('User must be authenticated to delete files');
+        }
+
+        final ref = _storage.refFromURL(url);
+        await ref.delete();
+        return; // Success
+        
+      } on FirebaseException catch (e) {
+        // Don't throw error if file doesn't exist
+        if (e.code == 'storage/object-not-found') {
+          return; // File already deleted or never existed
+        }
+        
+        lastException = Exception(_handleFirebaseStorageError(e));
+        
+        // Don't retry for certain error types
+        if (!_shouldRetryDelete(e)) {
+          throw lastException;
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Delete attempt $retryCount failed, retrying in $retryCount seconds...');
+          await Future.delayed(Duration(seconds: retryCount));
+        }
+        
+      } catch (e) {
+        if (e is Exception) {
+          lastException = e;
+        } else {
+          lastException = Exception('Failed to delete file: ${ErrorHandler.getErrorMessage(e)}');
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          debugPrint('Delete attempt $retryCount failed, retrying in $retryCount seconds...');
+          await Future.delayed(Duration(seconds: retryCount));
+        }
+      }
+    }
+
+    throw lastException ?? Exception('Delete failed after $maxRetries attempts');
+  }
+
+  /// Determine if delete operation should be retried based on error
+  bool _shouldRetryDelete(FirebaseException e) {
+    // Don't retry for these error types
+    final nonRetryableErrors = [
+      'storage/unauthorized',
+      'storage/unauthenticated',
+      'storage/object-not-found',
+      'storage/invalid-url',
+      'storage/invalid-argument',
+    ];
+    
+    return !nonRetryableErrors.contains(e.code);
   }
 
   /// Deletes multiple files with error handling for each file

@@ -54,13 +54,18 @@ class MediaService {
           throw Exception('Camera permission is required to take photos');
         }
       } else {
+        debugPrint('Requesting storage permission for gallery access...');
         final hasPermission = await PermissionService.requestStoragePermission();
+        debugPrint('Storage permission result: $hasPermission');
+        
         if (!hasPermission) {
+          debugPrint('Storage permission denied, showing dialog...');
           if (context.mounted) {
             await PermissionService.showPermissionDeniedDialog(context, 'storage');
           }
           throw Exception('Storage permission is required to access photos');
         }
+        debugPrint('Storage permission granted, proceeding with gallery access...');
       }
 
       final picker = ImagePicker();
@@ -95,9 +100,26 @@ class MediaService {
 
       // Validate the selected file
       final imageFile = File(pickedFile.path);
+      
+      // Check if file still exists
+      if (!await imageFile.exists()) {
+        throw Exception('Selected image file no longer exists. Please try again.');
+      }
+      
       final validationError = UploadUtils.validateBeforeUpload(imageFile, 'image');
       if (validationError != null) {
         throw Exception(validationError);
+      }
+
+      // Additional image-specific validation
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Selected image file is empty or corrupted');
+      }
+
+      if (fileSize > ValidationUtils.maxImageSize) {
+        final maxSizeMB = (ValidationUtils.maxImageSize / (1024 * 1024)).toStringAsFixed(0);
+        throw Exception('Image size must be less than ${maxSizeMB}MB');
       }
 
       // Read file bytes
@@ -109,7 +131,12 @@ class MediaService {
       
       // Upload to Firebase Storage with retry mechanism
       final url = await UploadUtils.uploadWithRetry(
-        uploadFunction: () => _storageService.uploadFileBytes(file, storagePath),
+        uploadFunction: () => _storageService.uploadFileBytes(
+          file, 
+          storagePath,
+          onProgress: onProgress,
+          contentType: 'image/jpeg',
+        ),
         onProgress: onProgress,
         onStatusUpdate: onStatusUpdate,
       );
@@ -223,9 +250,26 @@ class MediaService {
 
       // Validate the selected file
       final videoFile = File(pickedFile.path);
+      
+      // Check if file still exists
+      if (!await videoFile.exists()) {
+        throw Exception('Selected video file no longer exists. Please try again.');
+      }
+      
       final validationError = UploadUtils.validateBeforeUpload(videoFile, 'video');
       if (validationError != null) {
         throw Exception(validationError);
+      }
+
+      // Additional video-specific validation
+      final fileSize = await videoFile.length();
+      if (fileSize == 0) {
+        throw Exception('Selected video file is empty or corrupted');
+      }
+
+      if (fileSize > ValidationUtils.maxVideoSize) {
+        final maxSizeMB = (ValidationUtils.maxVideoSize / (1024 * 1024)).toStringAsFixed(0);
+        throw Exception('Video size must be less than ${maxSizeMB}MB');
       }
 
       // Read file bytes
@@ -237,7 +281,12 @@ class MediaService {
       
       // Upload to Firebase Storage with retry mechanism
       final url = await UploadUtils.uploadWithRetry(
-        uploadFunction: () => _storageService.uploadFileBytes(file, storagePath),
+        uploadFunction: () => _storageService.uploadFileBytes(
+          file, 
+          storagePath,
+          onProgress: onProgress,
+          contentType: 'video/mp4',
+        ),
         onProgress: onProgress,
         onStatusUpdate: onStatusUpdate,
       );
@@ -595,6 +644,7 @@ class MediaService {
             } catch (e) {
               // Log error but continue with Firestore deletion
               // Storage file might already be deleted or not exist
+              ErrorHandler.logError('MediaService.deleteMedia.storage', e);
             }
           }
         }
@@ -684,9 +734,19 @@ class MediaService {
         throw Exception('Folder ID is required');
       }
 
+      if (mediaIds.isEmpty) {
+        throw Exception('No media files selected for deletion');
+      }
+
       final batchError = ValidationUtils.validateBatchOperation(mediaIds);
       if (batchError != null) {
         throw Exception(batchError);
+      }
+
+      // Check for duplicate IDs
+      final uniqueIds = mediaIds.toSet();
+      if (uniqueIds.length != mediaIds.length) {
+        throw Exception('Duplicate media IDs detected in batch operation');
       }
 
       // First, get all media documents to access URLs for storage cleanup

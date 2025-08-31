@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/route_constants.dart';
-import '../home/home_page.dart' as home_page;
+
 import '../../design_system/app_colors.dart';
 import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
+import '../../services/auth_service.dart';
+import '../../utils/error_handler.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +17,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
 
   String _error = '';
   bool _loading = false;
@@ -26,25 +28,35 @@ class _LoginPageState extends State<LoginPage> {
       _loading = true;
     });
 
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    final result = await _authService.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    setState(() {
+      _loading = false;
+    });
+
+    if (result.isSuccess) {
+      // Show success message if provided
+      if (result.message != null && mounted) {
+        ErrorHandler.showSuccessSnackBar(context, result.message!);
+      }
+      // Navigation is handled by the StreamBuilder in main.dart
+      // No need to manually navigate here
+    } else {
       setState(() {
-        _loading = false;
+        _error = result.error ?? 'Login failed. Please try again.';
       });
+      
+      // Show user-friendly error message
       if (mounted) {
-        Navigator.pushReplacement(
+        ErrorHandler.showErrorSnackBar(
           context,
-          MaterialPageRoute(builder: (_) => home_page.HomePage()),
+          message: _error,
+          onRetry: _login,
         );
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = e.message ?? 'Login failed';
-        _loading = false;
-      });
     }
   }
 

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
-import '../utils/comprehensive_error_handler.dart';
+import '../utils/error_handler.dart';
 import 'user_profile_service.dart';
 
 /// Cache entry for profile pictures with metadata
@@ -81,21 +81,17 @@ class ProfilePictureService {
 
     if (shouldRefresh) {
       try {
-        // Use fallback mechanism for profile fetching
-        _cachedProfile = await ComprehensiveErrorHandler.withFallback<UserProfile?>(
-          () async => await _userProfileService.getUserProfile(user.uid),
-          () async {
-            // Fallback: return cached profile if available
-            if (_cachedProfile != null) {
-              debugPrint('Using cached profile as fallback for user ${user.uid}');
-              return _cachedProfile!;
-            }
-            throw Exception('No cached profile available');
-          },
-          operationName: 'Profile fetch for user ${user.uid}',
-          maxRetries: 2,
-          retryDelay: const Duration(seconds: 1),
-        );
+        // Use retry mechanism for profile fetching
+        try {
+          _cachedProfile = await ErrorHandler.retryOperation(
+            () => _userProfileService.getUserProfile(user.uid),
+            maxRetries: 2,
+            initialDelay: const Duration(seconds: 1),
+          );
+        } catch (e) {
+          // Keep existing cached profile if fetch fails
+          ErrorHandler.logError('ProfilePictureService.getProfilePicture', e);
+        }
         
         _lastFetch = now;
         
@@ -105,7 +101,7 @@ class ProfilePictureService {
         }
       } catch (e) {
         // Enhanced error handling - log the error but don't throw
-        debugPrint('Profile fetch failed for user ${user.uid}: ${ComprehensiveErrorHandler.getProfilePictureErrorMessage(e)}');
+        debugPrint('Profile fetch failed for user ${user.uid}: ${ErrorHandler.getErrorMessage(e)}');
         
         // Return cached profile if available, otherwise null
         // This provides better UX when offline or during network issues
@@ -258,28 +254,11 @@ class ProfilePictureService {
     try {
       final userProfileService = UserProfileService();
       
-      // Use fallback mechanism for background refresh
-      final profile = await ComprehensiveErrorHandler.withFallback<UserProfile?>(
-        () async => await userProfileService.getUserProfile(userId),
-        () async {
-          // Fallback: keep existing cached value
-          final existingEntry = _profilePictureCache[userId];
-          if (existingEntry != null) {
-            debugPrint('Background refresh failed for $userId, keeping cached value');
-            return UserProfile(
-              id: userId,
-              username: 'Unknown',
-              email: '',
-              profilePictureUrl: existingEntry.imageUrl,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
-          }
-          throw Exception('No cached profile available for background refresh');
-        },
-        operationName: 'Background profile refresh for $userId',
+      // Use retry mechanism for background refresh
+      final profile = await ErrorHandler.retryOperation(
+        () => userProfileService.getUserProfile(userId),
         maxRetries: 1, // Fewer retries for background operations
-        retryDelay: const Duration(seconds: 2),
+        initialDelay: const Duration(seconds: 2),
       );
       
       if (profile != null) {
@@ -287,7 +266,7 @@ class ProfilePictureService {
       }
     } catch (e) {
       // Enhanced error handling for background refresh
-      debugPrint('Background profile picture refresh failed for $userId: ${ComprehensiveErrorHandler.getProfilePictureErrorMessage(e, isCacheError: true)}');
+      debugPrint('Background profile picture refresh failed for $userId: ${ErrorHandler.getErrorMessage(e)}');
       
       // Mark cache entry as having failed refresh (but don't remove it)
       final existingEntry = _profilePictureCache[userId];
