@@ -20,6 +20,7 @@ import 'constants/route_constants.dart';
 
 Route<dynamic> generateRoute(RouteSettings settings) {
   switch (settings.name) {
+    case '/':
     case Routes.login:
       return MaterialPageRoute(builder: (_) => const LoginPage());
     case Routes.register:

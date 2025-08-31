@@ -7,6 +7,7 @@ class MediaFileModel {
   final String url;
   final String? title;
   final String? description;
+  final String? uploadedBy; // User ID of who uploaded this media
   final Timestamp createdAt;
 
   MediaFileModel({
@@ -16,6 +17,7 @@ class MediaFileModel {
     required this.url,
     this.title,
     this.description,
+    this.uploadedBy,
     required this.createdAt,
   });
 
@@ -28,6 +30,7 @@ class MediaFileModel {
       url: data['url'],
       title: data['title'],
       description: data['description'],
+      uploadedBy: data['uploadedBy'],
       createdAt: data['createdAt'] ?? Timestamp.now(),
     );
   }
@@ -38,6 +41,7 @@ class MediaFileModel {
     'url': url,
     'title': title,
     'description': description,
+    'uploadedBy': uploadedBy,
     'createdAt': createdAt,
   };
 }

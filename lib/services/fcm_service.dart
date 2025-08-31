@@ -266,9 +266,10 @@ class FCMService {
       await ErrorHandler.retryFCMOperation(
         () async {
           // Store in fcm_tokens collection for detailed tracking
+          // Use just the user ID as document ID to match Firestore rules
           await _firestore
               .collection('fcm_tokens')
-              .doc('${user.uid}_${_getPlatform()}')
+              .doc(user.uid)
               .set(fcmToken.toJson());
           
           // Also store in user profile for easy access by cloud functions
@@ -326,7 +327,7 @@ class FCMService {
       
       final doc = await _firestore
           .collection('fcm_tokens')
-          .doc('${user.uid}_${_getPlatform()}')
+          .doc(user.uid)
           .get();
       
       if (doc.exists && doc.data() != null) {
@@ -518,7 +519,7 @@ class FCMService {
         // Delete token from Firestore for current platform
         await _firestore
             .collection('fcm_tokens')
-            .doc('${user.uid}_${_getPlatform()}')
+            .doc(user.uid)
             .delete();
         
         debugPrint('FCM: Token cleared from Firestore');
@@ -548,7 +549,7 @@ class FCMService {
       for (final token in userTokens) {
         final docRef = _firestore
             .collection('fcm_tokens')
-            .doc('${token.userId}_${token.platform}');
+            .doc(token.userId);
         batch.delete(docRef);
       }
       

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_profile.dart';
 import '../models/friend_request_model.dart';
 import '../models/friendship_model.dart';
@@ -193,19 +194,30 @@ class FriendService {
         throw Exception('User must be logged in to respond to friend requests');
       }
 
+      // Verify authentication token is valid and refresh it
+      debugPrint('FriendService: Refreshing auth token for user ${currentUser.uid}');
+      await currentUser.getIdToken(true);
+      debugPrint('FriendService: Auth token refreshed successfully');
+
       FriendValidationUtils.validateUserId(requestId, 'Request ID');
 
-      // Get the friend request
-      final requestDoc = await _firestore
-          .collection(_friendRequestsCollection)
-          .doc(requestId)
-          .get();
+      // Get the friend request with retry logic for network issues
+      debugPrint('FriendService: Fetching friend request $requestId');
+      final requestDoc = await ErrorHandler.retryOperation(
+        () => _firestore
+            .collection(_friendRequestsCollection)
+            .doc(requestId)
+            .get(),
+        maxRetries: 3,
+        initialDelay: const Duration(seconds: 1),
+      );
 
       if (!requestDoc.exists) {
         throw Exception('Friend request not found');
       }
 
       final friendRequest = FriendRequest.fromFirestore(requestDoc);
+      debugPrint('FriendService: Found friend request - sender: ${friendRequest.senderId}, receiver: ${friendRequest.receiverId}, status: ${friendRequest.status}');
 
       // Verify the current user is the receiver
       if (friendRequest.receiverId != currentUser.uid) {
@@ -220,27 +232,70 @@ class FriendService {
       final now = DateTime.now();
       final newStatus = accept ? FriendRequestStatus.accepted : FriendRequestStatus.declined;
 
-      // Update the friend request status
-      await _firestore
-          .collection(_friendRequestsCollection)
-          .doc(requestId)
-          .update({
-        'status': newStatus.name,
-        'respondedAt': Timestamp.fromDate(now),
+      debugPrint('FriendService: Updating friend request status to ${newStatus.name}');
+
+      // Use a transaction to ensure atomicity
+      await _firestore.runTransaction((transaction) async {
+        // Re-read the document in the transaction to ensure it hasn't changed
+        final latestDoc = await transaction.get(
+          _firestore.collection(_friendRequestsCollection).doc(requestId)
+        );
+        
+        if (!latestDoc.exists) {
+          throw Exception('Friend request no longer exists');
+        }
+        
+        final latestRequest = FriendRequest.fromFirestore(latestDoc);
+        if (latestRequest.status != FriendRequestStatus.pending) {
+          throw Exception('This friend request has already been responded to');
+        }
+        
+        // Update the friend request status
+        transaction.update(
+          _firestore.collection(_friendRequestsCollection).doc(requestId),
+          {
+            'status': newStatus.name,
+            'respondedAt': Timestamp.fromDate(now),
+          },
+        );
+
+        // If accepted, create the friendship in the same transaction
+        if (accept) {
+          debugPrint('FriendService: Creating friendship between ${friendRequest.senderId} and ${friendRequest.receiverId}');
+          final orderedIds = [friendRequest.senderId, friendRequest.receiverId]..sort();
+          
+          final friendship = Friendship(
+            id: '', // Will be set by Firestore
+            userId1: orderedIds[0],
+            userId2: orderedIds[1],
+            createdAt: now,
+          );
+
+          final friendshipRef = _firestore.collection(_friendshipsCollection).doc();
+          transaction.set(friendshipRef, friendship.toFirestore());
+        }
       });
 
-      // If accepted, create the friendship
-      if (accept) {
-        await _createFriendship(friendRequest.senderId, friendRequest.receiverId);
-      }
+      debugPrint('FriendService: Successfully ${accept ? 'accepted' : 'declined'} friend request');
 
       return friendRequest.copyWith(
         status: newStatus,
         respondedAt: now,
       );
+    } on FirebaseAuthException catch (e) {
+      debugPrint('FriendService: FirebaseAuthException - ${e.code}: ${e.message}');
+      if (e.code == 'token-expired' || e.code == 'user-token-expired') {
+        throw Exception('Your session has expired. Please sign in again.');
+      }
+      throw Exception('Authentication error: ${ErrorHandler.getErrorMessage(e)}');
     } on FirebaseException catch (e) {
+      debugPrint('FriendService: FirebaseException - ${e.code}: ${e.message}');
+      if (e.code == 'permission-denied') {
+        throw Exception('You don\'t have permission to perform this action. Please sign in again.');
+      }
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
+      debugPrint('FriendService: General exception - $e');
       if (e is Exception) {
         rethrow;
       }

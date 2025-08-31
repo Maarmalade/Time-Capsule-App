@@ -130,25 +130,34 @@ class FolderService {
     }
   }
 
-  // Stream folders (top-level or nested)
+  // Stream folders (top-level or nested) - includes shared folders where user is contributor
   Stream<List<folder_model.FolderModel>> streamFolders({
     required String userId,
     String? parentFolderId,
   }) {
+    if (parentFolderId != null) {
+      // For nested folders, use the more comprehensive method
+      return streamUserAccessibleFolders(userId, parentFolderId: parentFolderId);
+    }
+    
+    // For top-level folders, use the original query
     Query query = _firestore
         .collection('folders')
-        .where('userId', isEqualTo: userId);
-    if (parentFolderId == null) {
-      query = query.where('parentFolderId', isNull: true);
-    } else {
-      query = query.where('parentFolderId', isEqualTo: parentFolderId);
-    }
+        .where(
+          Filter.or(
+            Filter('userId', isEqualTo: userId),
+            Filter('contributorIds', arrayContains: userId),
+          ),
+        )
+        .where('parentFolderId', isNull: true);
+    
     return query
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map(
           (snap) => snap.docs
               .map((d) => folder_model.FolderModel.fromDoc(d))
+              .where((folder) => _canUserAccessFolder(folder, userId))
               .toList(),
         );
   }
@@ -416,6 +425,14 @@ class FolderService {
   // Invite contributors to a shared folder
   Future<void> inviteContributors(String folderId, List<String> userIds) async {
     try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User must be logged in to invite contributors');
+      }
+
+      // Verify authentication token is valid
+      await currentUser.getIdToken(true);
+
       if (folderId.isEmpty) {
         throw Exception('Folder ID is required');
       }
@@ -438,6 +455,12 @@ class FolderService {
 
       if (!isShared) {
         throw Exception('Cannot invite contributors to a non-shared folder');
+      }
+
+      // Verify user is the owner
+      final ownerId = folderData['userId'];
+      if (ownerId != currentUser.uid) {
+        throw Exception('Only the folder owner can invite contributors');
       }
 
       final sharedData = SharedFolderData.fromMap(folderData);
@@ -469,7 +492,15 @@ class FolderService {
       for (final contributorId in newContributors) {
         await notifyContributorAdded(folderId, contributorId);
       }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'token-expired' || e.code == 'user-token-expired') {
+        throw Exception('Your session has expired. Please sign in again.');
+      }
+      throw Exception('Authentication error: ${ErrorHandler.getErrorMessage(e)}');
     } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        throw Exception('You don\'t have permission to perform this action. Please sign in again.');
+      }
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
@@ -929,15 +960,23 @@ class FolderService {
 
       return query
           .snapshots()
-          .map((snap) {
+          .asyncMap((snap) async {
             final folders = snap.docs
                 .map((d) => folder_model.FolderModel.fromDoc(d))
-                .where((folder) => _canUserAccessFolder(folder, userId))
                 .toList();
             
+            // For nested folders, check parent folder access
+            final accessibleFolders = <folder_model.FolderModel>[];
+            
+            for (final folder in folders) {
+              if (await _canUserAccessFolderAsync(folder, userId, parentFolderId)) {
+                accessibleFolders.add(folder);
+              }
+            }
+            
             // Sort client-side to avoid Firestore index issues
-            folders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-            return folders;
+            accessibleFolders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            return accessibleFolders;
           });
     } catch (e) {
       // Return empty stream on error to prevent UI crashes
@@ -945,7 +984,7 @@ class FolderService {
     }
   }
 
-  // Helper method to validate folder access
+  // Helper method to validate folder access (synchronous version)
   bool _canUserAccessFolder(folder_model.FolderModel folder, String userId) {
     // User is the owner
     if (folder.userId == userId) {
@@ -955,6 +994,39 @@ class FolderService {
     // User is a contributor to a shared folder
     if (folder.isShared && folder.contributorIds.contains(userId)) {
       return true;
+    }
+
+    return false;
+  }
+
+  // Async version that can check parent folder permissions
+  Future<bool> _canUserAccessFolderAsync(folder_model.FolderModel folder, String userId, String? parentFolderId) async {
+    // User is the owner
+    if (folder.userId == userId) {
+      return true;
+    }
+
+    // User is a contributor to a shared folder
+    if (folder.isShared && folder.contributorIds.contains(userId)) {
+      return true;
+    }
+
+    // For nested folders, check if user has access to parent folder
+    if (folder.parentFolderId != null && parentFolderId != null) {
+      try {
+        final parentDoc = await _firestore.collection('folders').doc(parentFolderId).get();
+        if (parentDoc.exists) {
+          final parentFolder = folder_model.FolderModel.fromDoc(parentDoc);
+          // If user has access to parent folder, they can see nested folders
+          if (parentFolder.userId == userId || 
+              (parentFolder.isShared && parentFolder.contributorIds.contains(userId))) {
+            return true;
+          }
+        }
+      } catch (e) {
+        // If we can't check parent, default to false
+        return false;
+      }
     }
 
     return false;

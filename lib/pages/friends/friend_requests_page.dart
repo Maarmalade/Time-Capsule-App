@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/friend_request_model.dart';
 import '../../services/friend_service.dart';
 import '../../widgets/friend_request_card.dart';
@@ -51,6 +52,15 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
 
   Future<void> _acceptFriendRequest(FriendRequest request) async {
     try {
+      // Verify user is authenticated before proceeding
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('You must be logged in to accept friend requests');
+      }
+
+      // Refresh authentication token to ensure it's valid
+      await currentUser.getIdToken(true);
+
       setState(() {
         _processingRequests.add(request.id);
       });
@@ -78,24 +88,85 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           ),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _processingRequests.remove(request.id);
+      });
+      
+      if (mounted) {
+        if (e.code == 'token-expired' || e.code == 'user-token-expired') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Your session has expired. Please sign in again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Sign In',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Authentication error: ${ErrorHandler.getErrorMessage(e)}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
     } catch (e) {
       setState(() {
         _processingRequests.remove(request.id);
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ErrorHandler.getErrorMessage(e)),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        String errorMessage = ErrorHandler.getErrorMessage(e);
+        if (errorMessage.contains('permission') || errorMessage.contains('sign in')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Authentication required. Please sign in again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Sign In',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }
 
   Future<void> _declineFriendRequest(FriendRequest request) async {
     try {
+      // Verify user is authenticated before proceeding
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('You must be logged in to decline friend requests');
+      }
+
+      // Refresh authentication token to ensure it's valid
+      await currentUser.getIdToken(true);
+
       setState(() {
         _processingRequests.add(request.id);
       });
@@ -116,18 +187,70 @@ class _FriendRequestsPageState extends State<FriendRequestsPage> {
           ),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _processingRequests.remove(request.id);
+      });
+      
+      if (mounted) {
+        if (e.code == 'token-expired' || e.code == 'user-token-expired') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Your session has expired. Please sign in again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Sign In',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Authentication error: ${ErrorHandler.getErrorMessage(e)}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
     } catch (e) {
       setState(() {
         _processingRequests.remove(request.id);
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ErrorHandler.getErrorMessage(e)),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        String errorMessage = ErrorHandler.getErrorMessage(e);
+        if (errorMessage.contains('permission') || errorMessage.contains('sign in')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Authentication required. Please sign in again.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: 'Sign In',
+                textColor: Theme.of(context).colorScheme.onError,
+                onPressed: () {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/login',
+                    (route) => false,
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }

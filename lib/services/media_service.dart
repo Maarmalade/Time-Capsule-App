@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/media_file_model.dart';
@@ -516,12 +517,22 @@ class MediaService {
 
   // Create media file
   Future<String> createMedia(String folderId, MediaFileModel media) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      throw Exception('User must be logged in to create media');
+    }
+
     final ref = _firestore
         .collection('folders')
         .doc(folderId)
         .collection('media')
         .doc();
-    await ref.set(media.toMap());
+    
+    final mediaData = media.toMap();
+    mediaData['uploadedBy'] = currentUser.uid;
+    mediaData['uploadedAt'] = Timestamp.fromDate(DateTime.now());
+    
+    await ref.set(mediaData);
     return ref.id;
   }
 

@@ -20,6 +20,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
   bool _hasSearched = false;
   String? _errorMessage;
   final Set<String> _pendingRequests = {};
+  final Set<String> _sentRequests = {};
 
   @override
   void dispose() {
@@ -67,6 +68,11 @@ class _AddFriendPageState extends State<AddFriendPage> {
       });
 
       await _friendService.sendFriendRequest(user.id);
+      
+      setState(() {
+        _pendingRequests.remove(user.id);
+        _sentRequests.add(user.id);
+      });
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -315,6 +321,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
       itemBuilder: (context, index) {
         final user = _searchResults[index];
         final isPending = _pendingRequests.contains(user.id);
+        final isSent = _sentRequests.contains(user.id);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -337,14 +344,14 @@ class _AddFriendPageState extends State<AddFriendPage> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            trailing: _buildActionButton(user, isPending, theme),
+            trailing: _buildActionButton(user, isPending, isSent, theme),
           ),
         );
       },
     );
   }
 
-  Widget _buildActionButton(UserProfile user, bool isPending, ThemeData theme) {
+  Widget _buildActionButton(UserProfile user, bool isPending, bool isSent, ThemeData theme) {
     if (isPending) {
       return SizedBox(
         width: 24,
@@ -352,6 +359,36 @@ class _AddFriendPageState extends State<AddFriendPage> {
         child: CircularProgressIndicator(
           strokeWidth: 2,
           valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+        ),
+      );
+    }
+
+    if (isSent) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.green, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle,
+              size: 18,
+              color: Colors.green,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Sent',
+              style: TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       );
     }

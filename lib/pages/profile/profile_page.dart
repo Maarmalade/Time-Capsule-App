@@ -10,6 +10,7 @@ import '../../widgets/profile_picture_widget.dart';
 import '../../constants/route_constants.dart';
 import '../../design_system/app_colors.dart';
 import '../../utils/error_handler.dart';
+import '../auth/login.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -221,8 +222,13 @@ class _ProfilePageState extends State<ProfilePage> {
         Navigator.of(context).pop();
       }
 
-      // Navigation is handled by the StreamBuilder in main.dart
-      // No need to manually navigate here
+      // Force navigation to login page after successful logout
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
     } on FirebaseAuthException catch (e) {
       // Close loading dialog if it's showing
       if (mounted) {

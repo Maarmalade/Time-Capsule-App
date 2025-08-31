@@ -148,13 +148,18 @@ class _MyAppState extends State<MyApp> {
           
           // Navigate based on authentication state
           if (snapshot.hasData && snapshot.data != null) {
+            debugPrint('Main: User authenticated (${snapshot.data!.uid}), showing HomePage');
             // User is authenticated, refresh FCM token for existing user
             AuthStateManager.refreshFCMTokenForExistingUser().catchError((e) {
               // Don't fail app startup if FCM token refresh fails
               ErrorHandler.logError('MyApp.refreshFCMTokenForExistingUser', e);
             });
+            
+            // Send all authenticated users directly to HomePage
+            // Profile setup can be handled within the app if needed
             return const HomePage();
           } else {
+            debugPrint('Main: User not authenticated, showing LoginPage');
             // User is not authenticated, go to login page
             return const LoginPage();
           }

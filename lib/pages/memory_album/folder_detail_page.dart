@@ -11,6 +11,7 @@ import '../../services/folder_service.dart';
 import '../../services/media_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/profile_picture_service.dart';
+import '../../services/user_profile_service.dart';
 import '../shared_folder/shared_folder_settings_page.dart';
 import 'create_folder_dialog.dart';
 import 'media_viewer_page.dart';
@@ -51,6 +52,7 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
   final StorageService _storageService = StorageService();
   final MultiSelectManager _multiSelectManager = MultiSelectManager();
   final ProfilePictureService _profileService = ProfilePictureService();
+  final UserProfileService _userProfileService = UserProfileService();
   UserProfile? _userProfile;
   SharedFolderData? _sharedData;
   bool _canContribute = false;
@@ -108,16 +110,24 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
       Map<String, String> contributorNames = {};
       if (sharedData != null) {
         // Load owner name
-        final ownerProfile = await _getUserProfile(sharedData.ownerId);
-        if (ownerProfile != null) {
-          contributorNames[sharedData.ownerId] = ownerProfile.username;
+        try {
+          final ownerProfile = await _getUserProfile(sharedData.ownerId);
+          if (ownerProfile != null) {
+            contributorNames[sharedData.ownerId] = ownerProfile.username;
+          }
+        } catch (e) {
+          contributorNames[sharedData.ownerId] = 'Owner';
         }
 
         // Load contributor names
         for (final contributorId in sharedData.contributorIds) {
-          final profile = await _getUserProfile(contributorId);
-          if (profile != null) {
-            contributorNames[contributorId] = profile.username;
+          try {
+            final profile = await _getUserProfile(contributorId);
+            if (profile != null) {
+              contributorNames[contributorId] = profile.username;
+            }
+          } catch (e) {
+            contributorNames[contributorId] = 'User ${contributorId.substring(0, 8)}...';
           }
         }
       }
@@ -136,16 +146,20 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
   }
 
   Future<UserProfile?> _getUserProfile(String userId) async {
-    // This is a simplified version - in a real app you'd have a user service
-    // For now, we'll create a basic profile
-    return UserProfile(
-      id: userId,
-      email: 'user@example.com',
-      username: 'User $userId',
-      profilePictureUrl: null,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    try {
+      // Use the user profile service to get actual user data
+      return await _userProfileService.getUserProfile(userId);
+    } catch (e) {
+      // If we can't get the profile, return a fallback
+      return UserProfile(
+        id: userId,
+        email: 'unknown@example.com',
+        username: 'User ${userId.substring(0, 8)}...',
+        profilePictureUrl: null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
   }
 
   void _navigateToSharedFolderSettings() {
@@ -394,13 +408,14 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
                           ...media.map((m) {
                             // Get contributor name for shared folders
                             String? contributorName;
-                            if (_sharedData != null) {
-                              // Try to get uploadedBy from media data (this would need to be added to MediaFileModel)
-                              // For now, we'll use a placeholder approach
-                              contributorName =
-                                  _contributorNames.values.isNotEmpty
-                                  ? _contributorNames.values.first
-                                  : 'Unknown';
+                            if (_sharedData != null && m.uploadedBy != null) {
+                              // Use the actual uploader's name from our contributor names map
+                              contributorName = _contributorNames[m.uploadedBy!];
+                              
+                              // If we don't have the name cached, show a shortened user ID
+                              if (contributorName == null && m.uploadedBy != null) {
+                                contributorName = 'User ${m.uploadedBy!.substring(0, 8)}...';
+                              }
                             }
 
                             return MediaCardWidget(
@@ -737,89 +752,99 @@ class _FolderDetailPageState extends State<FolderDetailPage> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (_sharedData != null) ...[
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.people,
-                        color: Theme.of(context).colorScheme.primary,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_sharedData != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.people,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Adding to shared folder',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Adding to shared folder',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                      ),
-                    ],
+                    ),
+                    const Divider(height: 1),
+                  ],
+                  ListTile(
+                    leading: const Icon(Icons.text_fields),
+                    title: const Text('Add Text File'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _addTextFile(context);
+                    },
                   ),
-                ),
-                const Divider(height: 1),
-              ],
-              ListTile(
-                leading: const Icon(Icons.text_fields),
-                title: const Text('Add Text File'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _addTextFile(context);
-                },
+                  ListTile(
+                    leading: const Icon(Icons.image),
+                    title: const Text('Add Image'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _addImage(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.videocam),
+                    title: const Text('Add Video'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _addVideo(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.audiotrack),
+                    title: const Text('Add Audio'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _addAudio(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.book),
+                    title: const Text('Add Diary Doc'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _addDiaryEntry(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.create_new_folder),
+                    title: const Text('Add Nested Folder'),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await showDialog(
+                        context: context,
+                        builder: (_) =>
+                            CreateFolderDialog(parentFolderId: widget.folder.id),
+                      );
+                    },
+                  ),
+                  // Add bottom padding to prevent overflow
+                  const SizedBox(height: 16),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.image),
-                title: const Text('Add Image'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _addImage(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.videocam),
-                title: const Text('Add Video'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _addVideo(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.audiotrack),
-                title: const Text('Add Audio'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _addAudio(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.book),
-                title: const Text('Add Diary Doc'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _addDiaryEntry(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.create_new_folder),
-                title: const Text('Add Nested Folder'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await showDialog(
-                    context: context,
-                    builder: (_) =>
-                        CreateFolderDialog(parentFolderId: widget.folder.id),
-                  );
-                },
-              ),
-            ],
+            ),
           ),
         );
       },

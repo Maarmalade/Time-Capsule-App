@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/route_constants.dart';
-
 import '../../design_system/app_colors.dart';
 import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
@@ -22,6 +22,8 @@ class _LoginPageState extends State<LoginPage> {
   String _error = '';
   bool _loading = false;
 
+
+
   Future<void> _login() async {
     setState(() {
       _error = '';
@@ -42,8 +44,16 @@ class _LoginPageState extends State<LoginPage> {
       if (result.message != null && mounted) {
         ErrorHandler.showSuccessSnackBar(context, result.message!);
       }
-      // Navigation is handled by the StreamBuilder in main.dart
-      // No need to manually navigate here
+      
+      // Force navigation to home page after successful login
+      // This ensures navigation happens even if StreamBuilder doesn't update immediately
+      if (mounted) {
+        debugPrint('Login: Success, forcing navigation to home');
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          Routes.home,
+          (route) => false, // Remove all previous routes
+        );
+      }
     } else {
       setState(() {
         _error = result.error ?? 'Login failed. Please try again.';
