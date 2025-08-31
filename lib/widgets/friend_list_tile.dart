@@ -22,6 +22,34 @@ class FriendListTile extends StatelessWidget {
     this.onRemove,
   });
 
+  void _showRemoveConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Friend'),
+        content: Text(
+          'Are you sure you want to remove ${friend.username} from your friends list?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onRemove?.call();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -66,7 +94,25 @@ class FriendListTile extends StatelessWidget {
               ),
             )
           : null,
-      trailing: trailing,
+      trailing: showRemoveOption && onRemove != null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (trailing != null) ...[
+                  trailing!,
+                  const SizedBox(width: 8),
+                ],
+                IconButton(
+                  icon: Icon(
+                    Icons.person_remove,
+                    color: theme.colorScheme.error,
+                  ),
+                  onPressed: () => _showRemoveConfirmation(context),
+                  tooltip: 'Remove Friend',
+                ),
+              ],
+            )
+          : trailing,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }

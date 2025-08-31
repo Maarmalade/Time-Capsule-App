@@ -878,75 +878,90 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title field
-                        Semantics(
-                          label: AccessibilityUtils.createSemanticLabel(
-                            label: 'Diary entry title',
-                            hint: 'Enter a title for your diary entry, required field',
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.borderMedium),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          textField: true,
-                          child: TextField(
-                            controller: _titleController,
-                            focusNode: _titleFocusNode,
-                            style: AppTypography.headlineSmall.copyWith(
-                              color: AppColors.textPrimary,
+                          child: Semantics(
+                            label: AccessibilityUtils.createSemanticLabel(
+                              label: 'Diary entry title',
+                              hint: 'Enter a title for your diary entry, required field',
                             ),
-                            decoration: InputDecoration(
-                              hintText: 'Diary Entry Title',
-                              hintStyle: AppTypography.headlineSmall.copyWith(
-                                color: AppColors.textSecondary,
+                            textField: true,
+                            child: TextField(
+                              controller: _titleController,
+                              focusNode: _titleFocusNode,
+                              style: AppTypography.headlineSmall.copyWith(
+                                color: AppColors.textPrimary,
                               ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
-                              ),
-                            ),
-                            textCapitalization: TextCapitalization.words,
-                            maxLength: 100,
-                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                              return Semantics(
-                                label: '$currentLength of ${maxLength ?? 0} characters used',
-                                child: Text(
-                                  '$currentLength/${maxLength ?? 0}',
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                              decoration: InputDecoration(
+                                hintText: 'Diary Entry Title',
+                                hintStyle: AppTypography.headlineSmall.copyWith(
+                                  color: AppColors.textSecondary,
                                 ),
-                              );
-                            },
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.md,
+                                ),
+                              ),
+                              textCapitalization: TextCapitalization.words,
+                              maxLength: 100,
+                              buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: AppSpacing.md),
+                                  child: Semantics(
+                                    label: '$currentLength of ${maxLength ?? 0} characters used',
+                                    child: Text(
+                                      '$currentLength/${maxLength ?? 0}',
+                                      style: AppTypography.bodySmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         
-                        Divider(color: AppColors.borderMedium),
+                        const SizedBox(height: AppSpacing.md),
                         
-                        const SizedBox(height: AppSpacing.sm),
-                        
-                        // Content field
-                        Semantics(
-                          label: AccessibilityUtils.createSemanticLabel(
-                            label: 'Diary entry content',
-                            hint: 'Write your diary entry content, required field, supports multiple lines',
+                        // Content field - Large text area
+                        Container(
+                          height: 400, // Fixed height for the content area
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.borderMedium),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          textField: true,
-                          multiline: true,
-                          child: TextField(
-                            controller: _contentController,
-                            focusNode: _contentFocusNode,
-                            style: AppTypography.bodyLarge.copyWith(
-                              color: AppColors.textPrimary,
-                              height: 1.5,
+                          child: Semantics(
+                            label: AccessibilityUtils.createSemanticLabel(
+                              label: 'Diary entry content',
+                              hint: 'Write your diary entry content, required field, supports multiple lines',
                             ),
-                            decoration: InputDecoration(
-                              hintText: 'Start writing your diary entry...',
-                              hintStyle: AppTypography.bodyLarge.copyWith(
-                                color: AppColors.textSecondary,
+                            textField: true,
+                            multiline: true,
+                            child: TextField(
+                              controller: _contentController,
+                              focusNode: _contentFocusNode,
+                              style: AppTypography.headlineSmall.copyWith( // Same font size as title
+                                color: AppColors.textPrimary,
+                                height: 1.5,
                               ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
+                              decoration: InputDecoration(
+                                hintText: 'Start writing your diary entry...',
+                                hintStyle: AppTypography.headlineSmall.copyWith( // Same font size as title
+                                  color: AppColors.textSecondary,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.all(AppSpacing.md),
                               ),
+                              maxLines: null,
+                              expands: true,
+                              textAlignVertical: TextAlignVertical.top,
+                              textCapitalization: TextCapitalization.sentences,
                             ),
-                            maxLines: null,
-                            textCapitalization: TextCapitalization.sentences,
                           ),
                         ),
                         

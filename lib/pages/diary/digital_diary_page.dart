@@ -5,7 +5,7 @@ import '../../services/media_service.dart';
 import '../../models/diary_entry_model.dart';
 import 'diary_editor_page.dart';
 import 'diary_viewer_page.dart';
-import '../../constants/route_constants.dart';
+
 import '../../design_system/app_colors.dart';
 import '../../design_system/app_typography.dart';
 import '../../design_system/app_spacing.dart';
@@ -202,17 +202,128 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
     }
   }
 
+  Future<bool> _showDateConfirmationDialog(DateTime selectedDate, bool isEditing) async {
+    final today = DateTime.now();
+    final isToday = selectedDate.year == today.year &&
+        selectedDate.month == today.month &&
+        selectedDate.day == today.day;
+    
+    // If it's today, no confirmation needed
+    if (isToday) return true;
+    
+    final dateStr = '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}';
+    final action = isEditing ? 'edit' : 'write';
+    
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              color: AppColors.primaryAccent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Confirm Date',
+              style: AppTypography.headlineSmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You are about to $action a diary entry for:',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primaryAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.primaryAccent.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event,
+                    color: AppColors.primaryAccent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    dateStr,
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: AppColors.primaryAccent,
+                      fontWeight: AppTypography.medium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This is not today\'s date. Are you sure you want to continue?',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              'Cancel',
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryAccent,
+            ),
+            child: Text(
+              'Continue',
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.primaryWhite,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) async {
     setState(() {
       _selectedDay = selectedDay;
       _focusedDay = focusedDay;
     });
-    final entry =
-        _entries[DateTime(
-          selectedDay.year,
-          selectedDay.month,
-          selectedDay.day,
-        )];
+    
+    final entry = _entries[DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day,
+    )];
+    
+    final isEditing = entry != null;
+    
+    // Show confirmation dialog for non-today dates
+    final confirmed = await _showDateConfirmationDialog(selectedDay, isEditing);
+    if (!confirmed) return;
+    
     if (entry == null) {
       // Create new diary entry using DiaryEditorPage with selected date
       final created = await Navigator.push(
