@@ -389,13 +389,6 @@ class _ScheduledMessagesPageState extends State<ScheduledMessagesPage>
             },
             tooltip: 'Refresh Messages',
           ),
-          // Debug button (only in debug mode)
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report),
-              onPressed: _showDebugInfo,
-              tooltip: 'Debug Info',
-            ),
         ],
         bottom: TabBar(
           controller: _tabController,

@@ -257,15 +257,7 @@ class _DigitalDiaryPageState extends State<DigitalDiaryPage> {
             color: AppColors.textPrimary,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.person,
-              color: AppColors.textPrimary,
-            ),
-            onPressed: () => Navigator.pushNamed(context, Routes.profile),
-          ),
-        ],
+
       ),
       body: _loading
           ? Center(

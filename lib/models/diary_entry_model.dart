@@ -40,6 +40,7 @@ class DiaryEntryModel extends MediaFileModel {
   final String content; // Rich text content
   final List<DiaryMediaAttachment> attachments;
   final Timestamp? lastModified;
+  @override
   final String? uploadedBy; // For shared folders
   final Timestamp diaryDate; // The date this diary entry is for (separate from createdAt)
   final bool isFavorite; // Whether this entry is marked as favorite for nostalgia reminders
