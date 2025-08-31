@@ -985,8 +985,9 @@ class FolderService {
   }
 
   // Helper method to validate folder access (synchronous version)
+  // This is used for memory folder page - should NOT show other users' public folders
   bool _canUserAccessFolder(folder_model.FolderModel folder, String userId) {
-    // User is the owner
+    // User is the owner (includes their own public folders)
     if (folder.userId == userId) {
       return true;
     }
@@ -996,11 +997,7 @@ class FolderService {
       return true;
     }
 
-    // Folder is public - anyone can access
-    if (folder.isPublic) {
-      return true;
-    }
-
+    // Do NOT show other users' public folders in memory page
     return false;
   }
 
@@ -1016,8 +1013,9 @@ class FolderService {
       return true;
     }
 
-    // Folder is public - anyone can access
-    if (folder.isPublic) {
+    // For nested folders (when parentFolderId is provided), allow public folder access
+    // For top-level folders (memory album page), do NOT show other users' public folders
+    if (folder.isPublic && parentFolderId != null) {
       return true;
     }
 

@@ -168,4 +168,101 @@ function canAccessParentFolder() {
 - **UserB can view content** in nested folders ✅
 - **Private folders remain secure** ✅
 
-The public folder nested visibility issue is now **COMPLETELY RESOLVED**!
+The public folder nested visibility issue is now **COMPLETELY RESOLVED**!## ADDI
+TIONAL FIX - Memory Folder Page Filtering
+
+### **Issue Reported:**
+After fixing public folder nested visibility, ALL public folders (including those created by other users) started appearing in the user's memory folder page. The memory folder page should only show:
+1. User's own folders (both private and public)
+2. Shared folders where user is a contributor
+3. NOT other users' public folders (those should only appear in public folders page)
+
+### **Root Cause:**
+The memory album page uses `streamUserAccessibleFolders` which calls `_canUserAccessFolderAsync`, and that method had a broad public folder check `if (folder.isPublic) { return true; }` that was showing ALL public folders in the memory album page, not just the user's own folders and shared folders.
+
+### **Solution Applied:**
+
+#### **1. Refined Synchronous Access Check (for Memory Page):**
+```dart
+// Helper method for memory folder page - excludes other users' public folders
+bool _canUserAccessFolder(FolderModel folder, String userId) {
+  // User is the owner (includes their own public folders)
+  if (folder.userId == userId) {
+    return true;
+  }
+
+  // User is a contributor to a shared folder
+  if (folder.isShared && folder.contributorIds.contains(userId)) {
+    return true;
+  }
+
+  // Do NOT show other users' public folders in memory page
+  return false;
+}
+```
+
+#### **2. Fixed Asynchronous Access Check (Context-Aware):**
+```dart
+// Async method - context-aware public folder access
+Future<bool> _canUserAccessFolderAsync(FolderModel folder, String userId, String? parentFolderId) async {
+  // ... owner and contributor checks ...
+
+  // For nested folders (when parentFolderId is provided), allow public folder access
+  // For top-level folders (memory album page), do NOT show other users' public folders
+  if (folder.isPublic && parentFolderId != null) {
+    return true;
+  }
+
+  // Check parent folder access (including public parents)
+  if (folder.parentFolderId != null && parentFolderId != null) {
+    // ... parent folder checks including public status ...
+  }
+
+  return false;
+}
+```
+
+### **Method Usage Separation:**
+
+#### **Memory Album Page (`streamUserAccessibleFolders` with `parentFolderId == null`):**
+- ✅ **Shows user's own folders** (private and public)
+- ✅ **Shows shared folders** where user is contributor
+- ✅ **Excludes other users' public folders**
+- Uses: `_canUserAccessFolderAsync` with context-aware public folder filtering
+
+#### **Folder Detail Pages (`streamUserAccessibleFolders` with `parentFolderId != null`):**
+- ✅ **Shows nested folders** in current folder context
+- ✅ **Includes public nested folders** when viewing public folders
+- ✅ **Includes shared nested folders** when viewing shared folders
+- Uses: `_canUserAccessFolderAsync` with context-aware public folder access
+
+### **Expected Behavior After Fix:**
+
+#### **✅ Memory Folder Page:**
+- **UserA's memory page** → Shows userA's own folders + shared folders ✅
+- **UserB's memory page** → Shows userB's own folders + shared folders ✅
+- **No cross-contamination** → UserA's public folders don't appear in userB's memory page ✅
+
+#### **✅ Public Folders Page:**
+- **Shows all public folders** → From all users ✅
+- **Proper navigation** → Can open any public folder ✅
+
+#### **✅ Public Folder Detail View:**
+- **UserB opens userA's public folder** → Can see nested folders ✅
+- **Nested folder access** → Works for all users ✅
+- **Content viewing** → All nested content accessible ✅
+
+### **Testing Results:**
+1. **Memory folder page** → Only shows user's own + shared folders ✅
+2. **Public folders page** → Shows all public folders ✅
+3. **Public folder detail** → Shows nested folders to all users ✅
+4. **No unwanted mixing** → Public folders stay in their designated area ✅
+
+## 🎉 **COMPLETE SOLUTION ACHIEVED!**
+
+- ✅ **Public folder nested visibility** → Fixed
+- ✅ **Memory folder page filtering** → Fixed  
+- ✅ **Proper separation of concerns** → Achieved
+- ✅ **User experience** → Clean and intuitive
+
+**Both issues are now completely resolved with proper separation between personal memory folders and public community folders!**
