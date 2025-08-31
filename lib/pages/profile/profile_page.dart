@@ -315,89 +315,113 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _userProfile == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage ?? 'Failed to load profile',
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadUserProfile,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  // Profile Picture Section
-                  _buildProfilePicture(),
-                  const SizedBox(height: 24),
-
-                  // Username
-                  Text(
-                    '@${_userProfile!.username}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Email
-                  Text(
-                    _userProfile!.email,
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Profile Actions
-                  _buildProfileActions(),
-
-                  // Error Message
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage ?? 'Failed to load profile',
+                        style: const TextStyle(fontSize: 16),
+                        textAlign: TextAlign.center,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade600),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(color: Colors.red.shade600),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadUserProfile,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      children: [
+                        // Back Navigation
+                        Row(
+                          children: [
+                            Semantics(
+                              button: true,
+                              label: 'Go back to home page',
+                              child: IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.arrow_back),
+                                iconSize: 28,
+                              ),
+                            ),
+                            const Spacer(),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Page Title
+                        const Text(
+                          'User Profile',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Profile Picture Section
+                        _buildProfilePicture(),
+                        const SizedBox(height: 24),
+
+                        // Username
+                        Text(
+                          '@${_userProfile!.username}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Email
+                        Text(
+                          _userProfile!.email,
+                          style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Profile Actions
+                        _buildProfileActions(),
+
+                        // Error Message
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.red.shade600),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: TextStyle(color: Colors.red.shade600),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                ),
     );
   }
 

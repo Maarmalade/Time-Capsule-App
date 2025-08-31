@@ -38,15 +38,15 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
   final _contentController = TextEditingController();
   final _titleFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
-  
+
   final MediaService _mediaService = MediaService();
-  
+
   List<DiaryMediaAttachment> _attachments = [];
   bool _isLoading = false;
   bool _hasUnsavedChanges = false;
   bool _isFavorite = false;
   Timer? _autoSaveTimer;
-  
+
   String? get _userId => FirebaseAuth.instance.currentUser?.uid;
 
   @override
@@ -90,7 +90,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
         _hasUnsavedChanges = true;
       });
     });
-    
+
     _contentController.addListener(() {
       setState(() {
         _hasUnsavedChanges = true;
@@ -99,17 +99,17 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
   }
 
   bool _canSave() {
-    return _titleController.text.trim().isNotEmpty && 
-           _contentController.text.trim().isNotEmpty &&
-           _userId != null;
+    return _titleController.text.trim().isNotEmpty &&
+        _contentController.text.trim().isNotEmpty &&
+        _userId != null;
   }
 
   Future<void> _autoSave() async {
     if (!_canSave()) return;
-    
+
     try {
       final diary = _createDiaryEntry();
-      
+
       if (widget.existingEntry != null) {
         await _mediaService.updateDiaryEntry(
           folderId: widget.folderId,
@@ -121,7 +121,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
         // For new entries, we'll save on manual save only
         // Auto-save for new entries could create unwanted drafts
       }
-      
+
       setState(() {
         _hasUnsavedChanges = false;
       });
@@ -133,17 +133,19 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
 
   DiaryEntryModel _createDiaryEntry() {
     // Use selected date if provided, otherwise use existing entry's diary date or current time
-    final diaryDate = widget.selectedDate != null 
+    final diaryDate = widget.selectedDate != null
         ? Timestamp.fromDate(widget.selectedDate!)
         : (widget.existingEntry?.diaryDate ?? Timestamp.now());
-        
+
     return DiaryEntryModel(
       id: widget.existingEntry?.id ?? '',
       folderId: widget.folderId,
       title: _titleController.text.trim(),
       content: _contentController.text.trim(),
       attachments: _attachments,
-      createdAt: widget.existingEntry?.createdAt ?? Timestamp.now(), // Keep original creation time for existing entries
+      createdAt:
+          widget.existingEntry?.createdAt ??
+          Timestamp.now(), // Keep original creation time for existing entries
       diaryDate: diaryDate, // The date this diary entry is for
       lastModified: Timestamp.now(),
       uploadedBy: widget.isSharedFolder ? _userId : null,
@@ -163,7 +165,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
 
     try {
       final diary = _createDiaryEntry();
-      
+
       if (widget.existingEntry != null) {
         await _mediaService.updateDiaryEntry(
           folderId: widget.folderId,
@@ -199,10 +201,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppColors.errorRed,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.errorRed),
       );
     }
   }
@@ -223,15 +222,13 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
       _isFavorite = !_isFavorite;
       _hasUnsavedChanges = true;
     });
-    
+
     _showSuccessSnackBar(
-      _isFavorite 
-        ? 'Added to favorites! This entry will appear in nostalgia reminders.'
-        : 'Removed from favorites.',
+      _isFavorite
+          ? 'Added to favorites! This entry will appear in nostalgia reminders.'
+          : 'Removed from favorites.',
     );
   }
-
-
 
   Future<void> _addImageMedia() async {
     // Store ScaffoldMessenger reference early to avoid context issues
@@ -458,13 +455,11 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
     }
   }
 
-
-
   void _removeAttachment(int index) {
     setState(() {
       _attachments.removeAt(index);
       _hasUnsavedChanges = true;
-      
+
       // Update positions of remaining attachments
       for (int i = 0; i < _attachments.length; i++) {
         _attachments[i] = DiaryMediaAttachment(
@@ -530,11 +525,13 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
   }) {
     // Special styling for favorite button
     final isFavoriteButton = label == 'Favourite';
-    final activeColor = isFavoriteButton ? AppColors.favoriteYellow : AppColors.primaryAccent;
-    final activeBackgroundColor = isFavoriteButton 
+    final activeColor = isFavoriteButton
+        ? AppColors.favoriteYellow
+        : AppColors.primaryAccent;
+    final activeBackgroundColor = isFavoriteButton
         ? AppColors.favoriteYellow.withValues(alpha: 0.2)
         : AppColors.primaryAccent.withValues(alpha: 0.2);
-    
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -550,13 +547,13 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: isActive 
-                  ? activeBackgroundColor
-                  : AppColors.primaryAccent.withValues(alpha: 0.1),
+                color: isActive
+                    ? activeBackgroundColor
+                    : AppColors.primaryAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: isActive 
-                  ? Border.all(color: activeColor, width: 1)
-                  : null,
+                border: isActive
+                    ? Border.all(color: activeColor, width: 1)
+                    : null,
               ),
               child: Icon(
                 icon,
@@ -770,8 +767,6 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -792,9 +787,9 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
           leading: Semantics(
             label: AccessibilityUtils.createSemanticLabel(
               label: 'Close diary editor',
-              hint: _hasUnsavedChanges 
-                ? 'Close editor, you have unsaved changes'
-                : 'Close diary editor',
+              hint: _hasUnsavedChanges
+                  ? 'Close editor, you have unsaved changes'
+                  : 'Close diary editor',
               isButton: true,
             ),
             button: true,
@@ -809,7 +804,9 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
             ),
           ),
           title: Text(
-            widget.existingEntry != null ? 'Edit Diary Entry' : 'New Diary Entry',
+            widget.existingEntry != null
+                ? 'Edit Diary Entry'
+                : 'New Diary Entry',
             style: AppTypography.headlineMedium.copyWith(
               color: AppColors.textPrimary,
             ),
@@ -832,9 +829,9 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
             Semantics(
               label: AccessibilityUtils.createSemanticLabel(
                 label: 'Save diary entry',
-                hint: _canSave() && !_isLoading 
-                  ? 'Save the diary entry'
-                  : 'Cannot save, title and content required',
+                hint: _canSave() && !_isLoading
+                    ? 'Save the diary entry'
+                    : 'Cannot save, title and content required',
                 isButton: true,
               ),
               button: true,
@@ -844,9 +841,9 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                 child: Text(
                   'Save',
                   style: AppTypography.labelLarge.copyWith(
-                    color: _canSave() && !_isLoading 
-                      ? AppColors.primaryAccent 
-                      : AppColors.textSecondary,
+                    color: _canSave() && !_isLoading
+                        ? AppColors.primaryAccent
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -854,208 +851,234 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
           ],
         ),
         body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: AppColors.primaryAccent),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Saving diary...',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
                 children: [
-                  CircularProgressIndicator(color: AppColors.primaryAccent),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Saving diary...',
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: AppSpacing.paddingMd,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title field
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.borderMedium),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Semantics(
+                              label: AccessibilityUtils.createSemanticLabel(
+                                label: 'Diary entry title',
+                                hint:
+                                    'Enter a title for your diary entry, required field',
+                              ),
+                              textField: true,
+                              child: TextField(
+                                controller: _titleController,
+                                focusNode: _titleFocusNode,
+                                style: AppTypography.headlineSmall.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Diary Entry Title',
+                                  hintStyle: AppTypography.headlineSmall
+                                      .copyWith(color: AppColors.textSecondary),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.md,
+                                  ),
+                                ),
+                                textCapitalization: TextCapitalization.words,
+                                maxLength: 100,
+                                buildCounter:
+                                    (
+                                      context, {
+                                      required currentLength,
+                                      required isFocused,
+                                      maxLength,
+                                    }) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: AppSpacing.md,
+                                        ),
+                                        child: Semantics(
+                                          label:
+                                              '$currentLength of ${maxLength ?? 0} characters used',
+                                          child: Text(
+                                            '$currentLength/${maxLength ?? 0}',
+                                            style: AppTypography.bodySmall
+                                                .copyWith(
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.md),
+
+                          // Content field - Large text area
+                          Container(
+                            height: 400, // Fixed height for the content area
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.borderMedium),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Semantics(
+                              label: AccessibilityUtils.createSemanticLabel(
+                                label: 'Diary entry content',
+                                hint:
+                                    'Write your diary entry content, required field, supports multiple lines',
+                              ),
+                              textField: true,
+                              multiline: true,
+                              child: TextField(
+                                controller: _contentController,
+                                focusNode: _contentFocusNode,
+                                style: AppTypography.headlineSmall.copyWith(
+                                  // Same font size as title
+                                  color: AppColors.textPrimary,
+                                  height: 1.5,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Start writing your diary entry...',
+                                  hintStyle: AppTypography.headlineSmall
+                                      .copyWith(
+                                        // Same font size as title
+                                        color: AppColors.textSecondary,
+                                      ),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.all(
+                                    AppSpacing.md,
+                                  ),
+                                ),
+                                maxLines: null,
+                                expands: true,
+                                textAlignVertical: TextAlignVertical.top,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: AppSpacing.lg),
+
+                          // Attachments section
+                          if (_attachments.isNotEmpty) ...[
+                            Text(
+                              'Attachments',
+                              style: AppTypography.headlineSmall.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+
+                            ...List.generate(_attachments.length, (index) {
+                              final attachment = _attachments[index];
+                              return Container(
+                                margin: const EdgeInsets.only(
+                                  bottom: AppSpacing.sm,
+                                ),
+                                padding: AppSpacing.paddingMd,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceSecondary,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppColors.borderMedium,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryAccent
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        attachment.type == 'image'
+                                            ? Icons.image
+                                            : attachment.type == 'video'
+                                            ? Icons.videocam
+                                            : Icons.audiotrack,
+                                        color: AppColors.primaryAccent,
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${attachment.type.toUpperCase()} Attachment',
+                                            style: AppTypography.bodyMedium
+                                                .copyWith(
+                                                  color: AppColors.textPrimary,
+                                                  fontWeight:
+                                                      AppTypography.medium,
+                                                ),
+                                          ),
+                                          if (attachment.caption?.isNotEmpty ??
+                                              false)
+                                            Text(
+                                              attachment.caption!,
+                                              style: AppTypography.bodySmall
+                                                  .copyWith(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: AppColors.errorRed,
+                                      ),
+                                      onPressed: () => _removeAttachment(index),
+                                      tooltip: 'Remove attachment',
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+
+                            const SizedBox(height: AppSpacing.lg),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: AppSpacing.paddingMd,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title field
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.borderMedium),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Semantics(
-                            label: AccessibilityUtils.createSemanticLabel(
-                              label: 'Diary entry title',
-                              hint: 'Enter a title for your diary entry, required field',
-                            ),
-                            textField: true,
-                            child: TextField(
-                              controller: _titleController,
-                              focusNode: _titleFocusNode,
-                              style: AppTypography.headlineSmall.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Diary Entry Title',
-                                hintStyle: AppTypography.headlineSmall.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.md,
-                                  vertical: AppSpacing.md,
-                                ),
-                              ),
-                              textCapitalization: TextCapitalization.words,
-                              maxLength: 100,
-                              buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: AppSpacing.md),
-                                  child: Semantics(
-                                    label: '$currentLength of ${maxLength ?? 0} characters used',
-                                    child: Text(
-                                      '$currentLength/${maxLength ?? 0}',
-                                      style: AppTypography.bodySmall.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        
-                        const SizedBox(height: AppSpacing.md),
-                        
-                        // Content field - Large text area
-                        Container(
-                          height: 400, // Fixed height for the content area
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.borderMedium),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Semantics(
-                            label: AccessibilityUtils.createSemanticLabel(
-                              label: 'Diary entry content',
-                              hint: 'Write your diary entry content, required field, supports multiple lines',
-                            ),
-                            textField: true,
-                            multiline: true,
-                            child: TextField(
-                              controller: _contentController,
-                              focusNode: _contentFocusNode,
-                              style: AppTypography.headlineSmall.copyWith( // Same font size as title
-                                color: AppColors.textPrimary,
-                                height: 1.5,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Start writing your diary entry...',
-                                hintStyle: AppTypography.headlineSmall.copyWith( // Same font size as title
-                                  color: AppColors.textSecondary,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.all(AppSpacing.md),
-                              ),
-                              maxLines: null,
-                              expands: true,
-                              textAlignVertical: TextAlignVertical.top,
-                              textCapitalization: TextCapitalization.sentences,
-                            ),
-                          ),
-                        ),
-                        
-                        const SizedBox(height: AppSpacing.lg),
-                        
-                        // Attachments section
-                        if (_attachments.isNotEmpty) ...[
-                          Text(
-                            'Attachments',
-                            style: AppTypography.headlineSmall.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          
-                          ...List.generate(_attachments.length, (index) {
-                            final attachment = _attachments[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                              padding: AppSpacing.paddingMd,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceSecondary,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.borderMedium),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryAccent.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      attachment.type == 'image' 
-                                        ? Icons.image
-                                        : attachment.type == 'video'
-                                          ? Icons.videocam
-                                          : Icons.audiotrack,
-                                      color: AppColors.primaryAccent,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${attachment.type.toUpperCase()} Attachment',
-                                          style: AppTypography.bodyMedium.copyWith(
-                                            color: AppColors.textPrimary,
-                                            fontWeight: AppTypography.medium,
-                                          ),
-                                        ),
-                                        if (attachment.caption?.isNotEmpty ?? false)
-                                          Text(
-                                            attachment.caption!,
-                                            style: AppTypography.bodySmall.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.delete_outline,
-                                      color: AppColors.errorRed,
-                                    ),
-                                    onPressed: () => _removeAttachment(index),
-                                    tooltip: 'Remove attachment',
-                                  ),
-                                ],
-                              ),
-                            );
-                          }),
-                          
-                          const SizedBox(height: AppSpacing.lg),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: AppColors.surfacePrimary,
             border: Border(
-              top: BorderSide(
-                color: AppColors.borderMedium,
-                width: 1,
-              ),
+              top: BorderSide(color: AppColors.borderMedium, width: 1),
             ),
           ),
           child: SafeArea(
@@ -1081,7 +1104,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                       onTap: () => _addImageMedia(),
                     ),
                   ),
-                  
+
                   // Add Video button
                   Semantics(
                     label: AccessibilityUtils.createSemanticLabel(
@@ -1096,7 +1119,7 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                       onTap: () => _addVideoMedia(),
                     ),
                   ),
-                  
+
                   // Add Audio button
                   Semantics(
                     label: AccessibilityUtils.createSemanticLabel(
@@ -1111,14 +1134,16 @@ class _DiaryEditorPageState extends State<DiaryEditorPage> {
                       onTap: () => _addAudioMedia(),
                     ),
                   ),
-                  
+
                   // Favorite toggle (star icon)
                   Semantics(
                     label: AccessibilityUtils.createSemanticLabel(
-                      label: _isFavorite ? 'Remove from favorites' : 'Add to favorites',
-                      hint: _isFavorite 
-                        ? 'Remove this diary entry from favorites'
-                        : 'Add this diary entry to favorites for nostalgia reminders',
+                      label: _isFavorite
+                          ? 'Remove from favorites'
+                          : 'Add to favorites',
+                      hint: _isFavorite
+                          ? 'Remove this diary entry from favorites'
+                          : 'Add this diary entry to favorites for nostalgia reminders',
                       isButton: true,
                     ),
                     button: true,
