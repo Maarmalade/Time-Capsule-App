@@ -996,6 +996,11 @@ class FolderService {
       return true;
     }
 
+    // Folder is public - anyone can access
+    if (folder.isPublic) {
+      return true;
+    }
+
     return false;
   }
 
@@ -1011,6 +1016,11 @@ class FolderService {
       return true;
     }
 
+    // Folder is public - anyone can access
+    if (folder.isPublic) {
+      return true;
+    }
+
     // For nested folders, check if user has access to parent folder
     if (folder.parentFolderId != null && parentFolderId != null) {
       try {
@@ -1019,7 +1029,8 @@ class FolderService {
           final parentFolder = folder_model.FolderModel.fromDoc(parentDoc);
           // If user has access to parent folder, they can see nested folders
           if (parentFolder.userId == userId || 
-              (parentFolder.isShared && parentFolder.contributorIds.contains(userId))) {
+              (parentFolder.isShared && parentFolder.contributorIds.contains(userId)) ||
+              parentFolder.isPublic) {  // Added public folder check
             return true;
           }
         }
