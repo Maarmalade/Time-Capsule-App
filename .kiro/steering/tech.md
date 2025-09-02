@@ -2,31 +2,48 @@
 inclusion: always
 ---
 
+---
+inclusion: always
+---
+
 # Time Capsule - Technical Implementation Guide
 
-## Core Technology Stack
-- **Flutter SDK**: ^3.8.1 with Material Design 3
-- **Firebase**: Complete BaaS integration (Auth, Firestore, Storage, Functions)
-- **Target Platforms**: Android, iOS, Web, Windows, macOS, Linux
-- **Node.js**: v22 for Cloud Functions
+## Technology Stack
+- **Flutter**: ^3.8.1 with Material Design 3
+- **Firebase**: Auth, Firestore, Storage, Functions, FCM
+- **Platforms**: Android, iOS, Web, Windows, macOS, Linux
+- **Cloud Functions**: Node.js v22
 
-## Critical Implementation Rules
+## Firebase Integration Rules
 
-### Firebase Integration Patterns
+### Authentication Pattern
 ```dart
-// Always check authentication before operations
+// ALWAYS check auth before Firebase operations
 final user = FirebaseAuth.instance.currentUser;
-if (user == null) throw Exception('User not authenticated');
+if (user == null) throw AuthException('User not authenticated');
 
-// Use proper error handling for all Firebase operations
+// Use AuthStateManager for centralized auth state
+final authManager = AuthStateManager();
+if (!authManager.isAuthenticated) return;
+```
+
+### Error Handling (Required)
+```dart
+// Wrap ALL Firebase operations
 try {
   await FirebaseFirestore.instance.collection('users').doc(user.uid).set(data);
 } on FirebaseException catch (e) {
-  // Handle specific Firebase errors
+  throw ServiceException('Operation failed: ${e.message}');
+} catch (e) {
+  throw ServiceException('Unexpected error: $e');
 }
+```
 
-// Dispose streams properly
+### Stream Management (Critical)
+```dart
+// ALWAYS dispose streams to prevent memory leaks
 StreamSubscription? _subscription;
+
 @override
 void dispose() {
   _subscription?.cancel();
@@ -34,80 +51,110 @@ void dispose() {
 }
 ```
 
-### Media Handling Requirements
-- **Compression**: All media MUST be compressed before upload using `flutter_image_compress`
-- **Permissions**: Check permissions before accessing camera/microphone
-- **Progress Tracking**: Show upload progress for all media operations
-- **Caching**: Use `cached_network_image` for all network images
-- **Error Recovery**: Provide fallback UI when media operations fail
+## Service Layer Requirements
 
-### Service Layer Architecture
-- Services are singletons that wrap Firebase operations
-- All service methods return `Future<T>` or `Stream<T>`
-- Services handle authentication checks internally
-- Use dependency injection pattern for testability
+### Service Structure
+- Services are singletons wrapping Firebase operations
+- Return `Future<T>` for operations, `Stream<T>` for real-time data
+- Handle auth validation internally
+- Transform Firebase exceptions to domain exceptions
 
-### Accessibility Implementation (WCAG 2.1 AA Required)
+### Example Service Pattern
 ```dart
-// Every interactive widget needs semantic labels
-Semantics(
-  label: 'Record audio message',
-  button: true,
-  child: IconButton(onPressed: _recordAudio, icon: Icon(Icons.mic)),
-)
+class ExampleService {
+  static final _instance = ExampleService._internal();
+  factory ExampleService() => _instance;
+  ExampleService._internal();
 
-// Use design system colors that meet contrast requirements
-Container(
-  color: AppColors.primary, // Pre-validated for accessibility
-  child: Text('Content', style: AppTypography.bodyLarge),
-)
-```
-
-### Error Handling Patterns
-```dart
-// Service layer error handling
-class DiaryService {
-  Future<DiaryEntry> createEntry(DiaryEntry entry) async {
+  Future<Model> createItem(Model item) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw AuthException('Not authenticated');
+    
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw AuthException('User not authenticated');
-      
-      final docRef = await FirebaseFirestore.instance
-          .collection('diary_entries')
-          .add(entry.toJson());
-      
-      return entry.copyWith(id: docRef.id);
+      final doc = await FirebaseFirestore.instance
+          .collection('items')
+          .add(item.toJson());
+      return item.copyWith(id: doc.id);
     } on FirebaseException catch (e) {
-      throw DiaryException('Failed to create entry: ${e.message}');
+      throw ServiceException('Create failed: ${e.message}');
     }
   }
 }
 ```
 
-### Testing Requirements
-- **Unit Tests**: All services must have >80% coverage using `mockito`
-- **Widget Tests**: Custom widgets require widget tests with accessibility validation
-- **Integration Tests**: Critical flows tested with `firebase_auth_mocks` and `fake_cloud_firestore`
-- **Accessibility Tests**: Use `flutter test --accessibility` for all UI components
+## Media Handling (Mandatory)
 
-### Development Commands
+### Compression & Upload
+- **MUST** compress all media using `flutter_image_compress` before upload
+- Check permissions before camera/microphone access
+- Show progress indicators for all upload operations
+- Use `cached_network_image` for network images
+- Implement fallback UI for media failures
+
+### Performance Requirements
+- Use `ListView.builder` for lists >20 items
+- Dispose all controllers in `dispose()` method
+- Use `const` constructors wherever possible
+- Profile memory usage for media features
+
+## Accessibility (WCAG 2.1 AA)
+
+### Required Implementation
+```dart
+// Every interactive element needs semantics
+Semantics(
+  label: 'Descriptive action label',
+  button: true,
+  child: IconButton(onPressed: _action, icon: Icon(Icons.add)),
+)
+
+// Use design system for accessibility compliance
+Container(
+  color: AppColors.primary, // Pre-validated contrast
+  child: Text('Content', style: AppTypography.bodyLarge),
+)
+```
+
+## Error Handling Strategy
+
+### Custom Exceptions
+- `AuthException`: Authentication failures
+- `ServiceException`: Firebase operation failures  
+- `ValidationException`: Input validation errors
+- `NetworkException`: Connectivity issues
+
+### User-Facing Errors
+- Show contextual messages, not technical details
+- Provide actionable recovery steps
+- Use snackbars for temporary errors, dialogs for critical issues
+- Implement retry mechanisms for network failures
+
+## Development Commands
+
 ```bash
-# Development with emulators
+# Run with Firebase emulators
 flutter run --dart-define=USE_EMULATOR=true
-
-# Run with device preview for responsive testing
-flutter run --dart-define=DEVICE_PREVIEW=true
 
 # Test with coverage
 flutter test --coverage
 
-# Firebase emulator setup
+# Start Firebase emulators
 firebase emulators:start --only auth,firestore,functions,storage
+
+# Accessibility testing
+flutter test --accessibility
 ```
 
-### Performance Guidelines
-- Use `ListView.builder` for large lists (>20 items)
-- Implement proper image sizing with `cached_network_image`
-- Dispose controllers and streams in widget `dispose()` methods
-- Use `const` constructors wherever possible
-- Profile memory usage for media-heavy features
+## Code Quality Standards
+
+### Testing Requirements
+- Unit tests: >80% coverage using `mockito`
+- Widget tests: Include accessibility validation
+- Integration tests: Use `firebase_auth_mocks` and `fake_cloud_firestore`
+- Run accessibility tests on all UI components
+
+### Performance Monitoring
+- Profile memory usage for media operations
+- Monitor Firebase usage and costs
+- Test on low-end devices for performance validation
+- Implement proper loading states for async operations

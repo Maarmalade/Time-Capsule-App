@@ -2,87 +2,137 @@
 inclusion: always
 ---
 
-# Time Capsule - Product Guidelines
+---
+inclusion: always
+---
 
-Time Capsule is a Flutter-based cross-platform application for creating and sharing digital memories through sophisticated memory albums and diary entries.
+# Time Capsule - Product & UX Guidelines
 
-## Core Product Features
+Time Capsule is a Flutter cross-platform app for creating and sharing digital memories through memory albums and diary entries with rich media support.
+
+## Core Feature Domains
 
 ### Memory Management
-- **Digital Memory Albums**: Create, organize, and manage personal memory collections in folders
-- **Diary Entries**: Rich diary system with text, audio, images, and video support
-- **Media Capture**: Integrated camera, audio recording, and media import capabilities
-- **Content Organization**: Hierarchical folder structure with tagging and search
+- **Memory Albums**: Hierarchical folder system for organizing personal collections
+- **Diary Entries**: Rich text + multimedia diary with audio/video/image support
+- **Media Capture**: Integrated camera, audio recording, and media import
+- **Content Search**: Tag-based organization and full-text search capabilities
 
-### Social & Sharing
-- **Friend System**: Add friends, manage requests, collaborate on shared folders
-- **Social Sharing**: Share memory folders with granular privacy controls
-- **Public Discovery**: Browse and access publicly shared memory collections
-- **Scheduled Messages**: Time-delayed delivery of messages and memories
+### Social Features
+- **Friend System**: Friend requests, management, and collaboration workflows
+- **Shared Folders**: Collaborative memory albums with permission controls
+- **Public Discovery**: Browse community-shared memory collections
+- **Scheduled Messages**: Time-delayed message delivery system
 
-### Media Handling
-- **Multi-format Support**: Photos, videos, audio recordings, and text content
-- **Automatic Compression**: Optimize media for storage and performance
-- **Responsive Playback**: Adaptive video/audio players with accessibility controls
+### Media Processing
+- **Multi-format Support**: Photos, videos, audio recordings, text content
+- **Automatic Compression**: All media must be compressed before Firebase upload
+- **Responsive Players**: Accessible video/audio players with proper controls
 
-## User Experience Principles
+## UX Design Principles
 
-### Accessibility First
-- **WCAG 2.1 AA Compliance**: All features must meet accessibility standards
-- **Screen Reader Support**: Comprehensive semantic markup and labels
-- **Keyboard Navigation**: Full keyboard accessibility for all interactions
-- **High Contrast**: Support for high contrast themes and color customization
+### Accessibility Requirements (WCAG 2.1 AA)
+- Every interactive element needs `semanticsLabel` and proper roles
+- Use design system colors that meet contrast requirements
+- Implement keyboard navigation for all features
+- Test with screen readers and accessibility tools
 
-### Professional Design
-- **Material Design 3**: Follow latest Material Design principles
-- **Consistent Typography**: Inter/Roboto font system with proper hierarchy
-- **8px Grid System**: Consistent spacing and layout alignment
-- **Responsive Design**: Adaptive layouts for mobile, tablet, and desktop
+### Material Design 3 Standards
+- Use `AppColors`, `AppTypography`, `AppSpacing` from design system
+- Follow 8px grid system for consistent spacing
+- Implement responsive layouts for mobile/tablet/desktop
+- Use proper elevation and surface colors
 
-### Performance Standards
-- **Fast Load Times**: Optimize for quick app startup and navigation
-- **Efficient Media**: Compress and cache media appropriately
-- **Offline Capability**: Core features should work without internet
-- **Battery Optimization**: Minimize background processing and resource usage
+### Performance Guidelines
+- Compress all media before upload using `flutter_image_compress`
+- Use `ListView.builder` for lists with >20 items
+- Implement proper image caching with `cached_network_image`
+- Show upload progress for all media operations
 
-## Development Guidelines
+## Development Conventions
 
-### Feature Implementation
-- **User-Centric**: Always consider the user's emotional connection to their memories
-- **Privacy-Focused**: Default to private, explicit consent for sharing
-- **Intuitive Navigation**: Clear information architecture and user flows
-- **Error Prevention**: Validate inputs and provide helpful error messages
+### User Flow Patterns
+- **Authentication Required**: Always check `FirebaseAuth.instance.currentUser` before operations
+- **Privacy First**: Default to private content, explicit consent for sharing
+- **Error Recovery**: Provide fallback UI when operations fail
+- **Loading States**: Show progress indicators for async operations
 
-### Content Handling
-- **Data Preservation**: Never lose user content, implement robust backup
-- **Version Control**: Track changes to shared folders and collaborative content
-- **Conflict Resolution**: Handle simultaneous edits gracefully
-- **Content Moderation**: Basic filtering for public content
-
-### Technical Constraints
-- **Cross-Platform**: Maintain feature parity across all supported platforms
-- **Firebase Integration**: Leverage Firebase services for backend functionality
+### Content Handling Rules
+- **Data Preservation**: Never lose user content, implement robust error handling
 - **Real-time Sync**: Use Firestore streams for live updates
-- **Scalable Architecture**: Design for growth in users and content volume
+- **Offline Support**: Cache critical data for offline access
+- **Conflict Resolution**: Handle simultaneous edits in shared folders
 
-## Key User Journeys
+### Navigation Patterns
+- Use named routes defined in `routes.dart`
+- Implement proper back navigation and breadcrumbs
+- Maintain navigation state across platform switches
+- Use bottom navigation for primary features, drawer for secondary
 
-1. **Onboarding**: Authentication → Profile setup → First memory creation
-2. **Daily Use**: Quick capture → Organize → Share with friends
-3. **Collaboration**: Invite friends → Shared folder creation → Collaborative editing
-4. **Discovery**: Browse public folders → Save favorites → Engage with community
-5. **Reflection**: Review past memories → Create nostalgia reminders → Schedule future messages
+## Feature-Specific Guidelines
 
-## Content Strategy
+### Diary System
+- Support rich text formatting with multimedia attachments
+- Auto-save drafts every 30 seconds
+- Implement mood tracking and reflection prompts
+- Enable voice-to-text for accessibility
 
-### Memory Types
-- **Personal Moments**: Individual experiences and reflections
-- **Shared Experiences**: Group events and collaborative memories
-- **Milestone Tracking**: Important life events and achievements
-- **Creative Expression**: Artistic content and personal projects
+### Memory Albums
+- Folder hierarchy with drag-and-drop organization
+- Batch operations for multiple items
+- Timeline view for chronological browsing
+- Export capabilities for data portability
 
-### Engagement Features
-- **Nostalgia Reminders**: Surface old memories at meaningful times
-- **Memory Prompts**: Suggest content creation based on patterns
-- **Social Notifications**: Friend activity and shared folder updates
-- **Achievement System**: Celebrate consistent usage and milestones+
+### Social Features
+- Friend request notifications with proper badges
+- Granular sharing permissions (view/edit/admin)
+- Activity feeds for shared folder updates
+- Privacy controls for all social interactions
+
+### Scheduled Messages
+- Calendar integration for delivery scheduling
+- Preview functionality before scheduling
+- Cancellation/editing capabilities before delivery
+- Notification system for sent messages
+
+## Error Handling Strategy
+
+### User-Facing Errors
+- Show contextual error messages, not technical details
+- Provide actionable recovery steps when possible
+- Use snackbars for temporary errors, dialogs for critical issues
+- Implement retry mechanisms for network failures
+
+### Data Validation
+- Validate all user inputs before Firebase operations
+- Check file sizes and formats before upload
+- Sanitize text content for security
+- Implement rate limiting for API calls
+
+## Content Guidelines
+
+### Memory Content
+- Support personal reflections and milestone tracking
+- Enable collaborative storytelling in shared folders
+- Implement content tagging for organization
+- Provide memory prompts and creative suggestions
+
+### Social Interactions
+- Encourage positive community engagement
+- Implement basic content moderation for public folders
+- Support commenting and reactions on shared content
+- Enable memory collaboration workflows
+
+## Platform Considerations
+
+### Cross-Platform Consistency
+- Maintain feature parity across Android, iOS, Web, Desktop
+- Adapt UI patterns to platform conventions
+- Handle platform-specific permissions properly
+- Test thoroughly on all target platforms
+
+### Performance Optimization
+- Optimize for mobile-first, enhance for larger screens
+- Implement lazy loading for media-heavy content
+- Use efficient data structures for large collections
+- Monitor memory usage in media processing features
