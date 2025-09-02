@@ -13,9 +13,9 @@ class HomePanelGrid extends StatelessWidget {
   final String personalDiaryFolderId;
   final void Function(BuildContext, String, String) navigate;
   const HomePanelGrid({
-    required this.mediaService, 
+    required this.mediaService,
     required this.personalDiaryFolderId,
-    required this.navigate, 
+    required this.navigate,
     super.key,
   });
 
@@ -29,11 +29,7 @@ class HomePanelGrid extends StatelessWidget {
         ),
         title: Row(
           children: [
-            Icon(
-              Icons.history,
-              color: AppColors.primaryAccent,
-              size: 24,
-            ),
+            Icon(Icons.history, color: AppColors.primaryAccent, size: 24),
             const SizedBox(width: AppSpacing.sm),
             Text(
               'Throwback',
@@ -83,10 +79,11 @@ class HomePanelGrid extends StatelessWidget {
           ),
           HomePanelCard(
             text: 'Scheduled Messages',
-            onTap: () => navigate(context, '/scheduled_messages', 'Scheduled Messages'),
+            onTap: () =>
+                navigate(context, '/scheduled_messages', 'Scheduled Messages'),
           ),
           HomePanelCard(
-            text: 'Access Community Album',
+            text: 'Community Album',
             onTap: () => navigate(context, '/public_folders', 'Public Folders'),
           ),
           HomePanelCard(
@@ -94,18 +91,18 @@ class HomePanelGrid extends StatelessWidget {
             onTap: () => navigate(context, '/digital_diary', 'Digital Diary'),
           ),
         ];
-        
+
         if (hasFavorites && favoriteEntry != null) {
           // Show favorite entry (existing logic)
           final imageAttachment = favoriteEntry.attachments
               .where((a) => a.type == 'image')
               .firstOrNull;
-          
+
           cards.add(
             HomePanelCard(
-              text: favoriteEntry.title?.isNotEmpty == true 
-                ? favoriteEntry.title! 
-                : '${DateTime.now().year - favoriteEntry.diaryDate.toDate().year} year${DateTime.now().year - favoriteEntry.diaryDate.toDate().year > 1 ? 's' : ''} ago',
+              text: favoriteEntry.title?.isNotEmpty == true
+                  ? favoriteEntry.title!
+                  : '${DateTime.now().year - favoriteEntry.diaryDate.toDate().year} year${DateTime.now().year - favoriteEntry.diaryDate.toDate().year > 1 ? 's' : ''} ago',
               image: imageAttachment != null
                   ? NetworkImage(imageAttachment.url)
                   : null,
@@ -133,7 +130,7 @@ class HomePanelGrid extends StatelessWidget {
             ),
           );
         }
-        
+
         return GridView.count(
           crossAxisCount: 2,
           mainAxisSpacing: AppSpacing.lg,

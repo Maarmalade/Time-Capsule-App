@@ -162,7 +162,7 @@ class _PublicFoldersPageState extends State<PublicFoldersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Public Folders'),
+        title: const Text('Community Album'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -172,7 +172,7 @@ class _PublicFoldersPageState extends State<PublicFoldersPage> {
               controller: _searchController,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search public folders...',
+                hintText: 'Search Community Album...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
