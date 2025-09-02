@@ -3,16 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'create_folder_dialog.dart';
 import 'folder_detail_page.dart';
 import '../../models/folder_model.dart';
-import '../../models/user_profile.dart';
 import '../../services/folder_service.dart';
-import '../../services/profile_picture_service.dart';
-import '../../constants/route_constants.dart';
 import '../../widgets/folder_card_widget.dart';
 import '../../widgets/edit_name_dialog.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../widgets/multi_select_manager.dart';
 import '../../widgets/batch_action_bar.dart';
-import '../../widgets/profile_picture_widget.dart';
 import '../../utils/error_handler.dart';
 import '../../widgets/error_display_widget.dart';
 import '../../design_system/app_colors.dart';
@@ -29,32 +25,25 @@ class MemoryAlbumPage extends StatefulWidget {
 class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
   final FolderService _folderService = FolderService();
   final MultiSelectManager _multiSelectManager = MultiSelectManager();
-  final ProfilePictureService _profileService = ProfilePictureService();
-  UserProfile? _userProfile;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
   }
 
   @override
   void dispose() {
     _multiSelectManager.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUserProfile() async {
-    try {
-      final profile = await _profileService.getCurrentUserProfile();
-      if (mounted) {
-        setState(() {
-          _userProfile = profile;
-        });
-      }
-    } catch (e) {
-      // Handle error silently - profile picture is not critical
-    }
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
   }
 
   @override
@@ -93,17 +82,6 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
             actions: _multiSelectManager.isMultiSelectMode
                 ? []
                 : [
-                    GestureDetector(
-                      onTap: () => Navigator.pushNamed(context, Routes.profile),
-                      child: Container(
-                        padding: AppSpacing.paddingSm,
-                        child: ProfilePictureWidget(
-                          userProfile: _userProfile,
-                          size: AppSpacing.iconSizeLarge,
-                          showBorder: true,
-                        ),
-                      ),
-                    ),
                     IconButton(
                       icon: Icon(
                         Icons.home,
@@ -113,6 +91,36 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
                           Navigator.popUntil(context, (route) => route.isFirst),
                     ),
                   ],
+            bottom: _multiSelectManager.isMultiSelectMode
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(60),
+                    child: Padding(
+                      padding: AppSpacing.paddingMd,
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: _onSearchChanged,
+                        decoration: InputDecoration(
+                          hintText: 'Search Memory Album',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearchChanged('');
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: AppSpacing.cardRadius,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.surfacePrimary,
+                        ),
+                      ),
+                    ),
+                  ),
           ),
           body: Column(
             children: [
@@ -121,6 +129,7 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
                   stream: _folderService.streamUserAccessibleFolders(
                     userId,
                     parentFolderId: null,
+                    searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
@@ -137,9 +146,15 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
                     }
 
                     final folders = snapshot.data ?? [];
+                    
+                    // Show empty state if no folders found and search is active
+                    if (folders.isEmpty && _searchQuery.isNotEmpty) {
+                      return _buildEmptySearchState();
+                    }
+                    
                     final items = [
-                      // "+" card at the top left (hidden in multi-select mode)
-                      if (!_multiSelectManager.isMultiSelectMode)
+                      // "+" card at the top left (hidden in multi-select mode and search mode)
+                      if (!_multiSelectManager.isMultiSelectMode && _searchQuery.isEmpty)
                         Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -360,5 +375,43 @@ class _MemoryAlbumPageState extends State<MemoryAlbumPage> {
         }
       }
     }
+  }
+
+  Widget _buildEmptySearchState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64,
+            color: AppColors.textTertiary,
+          ),
+          SizedBox(height: AppSpacing.md),
+          Text(
+            'No folders found',
+            style: AppTypography.headlineSmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          SizedBox(height: AppSpacing.sm),
+          Text(
+            'Try adjusting your search terms',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.textTertiary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: AppSpacing.md),
+          ElevatedButton(
+            onPressed: () {
+              _searchController.clear();
+              _onSearchChanged('');
+            },
+            child: const Text('Clear Search'),
+          ),
+        ],
+      ),
+    );
   }
 }

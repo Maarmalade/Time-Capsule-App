@@ -70,7 +70,7 @@ class HomePanelGrid extends StatelessWidget {
         final favoriteEntry = hasFavorites ? favoriteEntries.first : null;
         final List<Widget> cards = [
           HomePanelCard(
-            text: 'Access Memory Album',
+            text: 'Memory Album',
             onTap: () => navigate(context, '/memory_album', 'Memory Album'),
           ),
           HomePanelCard(

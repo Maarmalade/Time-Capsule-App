@@ -942,6 +942,7 @@ class FolderService {
   Stream<List<folder_model.FolderModel>> streamUserAccessibleFolders(
     String userId, {
     String? parentFolderId,
+    String? searchQuery,
   }) {
     try {
       if (userId.isEmpty) {
@@ -974,9 +975,20 @@ class FolderService {
               }
             }
             
+            // Apply client-side search filter if provided
+            List<folder_model.FolderModel> filteredFolders = accessibleFolders;
+            if (searchQuery != null && searchQuery.isNotEmpty) {
+              final lowercaseQuery = searchQuery.toLowerCase();
+              filteredFolders = accessibleFolders
+                  .where((folder) =>
+                      folder.name.toLowerCase().contains(lowercaseQuery) ||
+                      (folder.description?.toLowerCase().contains(lowercaseQuery) ?? false))
+                  .toList();
+            }
+            
             // Sort client-side to avoid Firestore index issues
-            accessibleFolders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-            return accessibleFolders;
+            filteredFolders.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            return filteredFolders;
           });
     } catch (e) {
       // Return empty stream on error to prevent UI crashes
