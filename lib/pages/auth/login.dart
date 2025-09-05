@@ -20,6 +20,14 @@ class _LoginPageState extends State<LoginPage> {
 
   String _error = '';
   bool _loading = false;
+  bool _passwordVisible = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
 
 
@@ -120,7 +128,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _buildTextField(_passwordController, 'Enter password', obscure: true),
+                      _buildPasswordField(
+                        _passwordController,
+                        'Enter password',
+                        _passwordVisible,
+                        () => setState(() => _passwordVisible = !_passwordVisible),
+                      ),
                       const SizedBox(height: AppSpacing.xl),
                       if (_error.isNotEmpty) ...[
                         Container(
@@ -226,6 +239,59 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         contentPadding: AppSpacing.inputPadding,
+      ),
+    );
+  }
+
+  Widget _buildPasswordField(
+    TextEditingController controller,
+    String hint,
+    bool isVisible,
+    VoidCallback onToggleVisibility,
+  ) {
+    return TextFormField(
+      controller: controller,
+      obscureText: !isVisible,
+      style: AppTypography.bodyMedium.copyWith(
+        color: AppColors.textPrimary,
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textTertiary,
+        ),
+        filled: true,
+        fillColor: AppColors.surfaceSecondary,
+        border: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide(
+            color: AppColors.primaryAccent,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AppSpacing.inputRadius,
+          borderSide: BorderSide(
+            color: AppColors.errorRed,
+            width: 2,
+          ),
+        ),
+        contentPadding: AppSpacing.inputPadding,
+        suffixIcon: Semantics(
+          label: isVisible ? 'Hide password' : 'Show password',
+          button: true,
+          child: IconButton(
+            icon: Icon(
+              isVisible ? Icons.visibility_off : Icons.visibility,
+              color: AppColors.textTertiary,
+            ),
+            onPressed: onToggleVisibility,
+          ),
+        ),
       ),
     );
   }
