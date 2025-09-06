@@ -19,19 +19,19 @@ void main() {
     test('Invalid passwords should fail validation', () {
       // Too short (5 characters)
       expect(isPasswordValid('Pas1!'), false);
-      
+
       // No uppercase
       expect(isPasswordValid('password123!'), false);
-      
+
       // No lowercase
       expect(isPasswordValid('PASSWORD123!'), false);
-      
+
       // No number
       expect(isPasswordValid('Password!'), false);
-      
+
       // No special character
       expect(isPasswordValid('Password123'), false);
-      
+
       // Empty password
       expect(isPasswordValid(''), false);
     });
@@ -39,7 +39,7 @@ void main() {
     test('Edge cases', () {
       // Exactly 6 characters with all requirements
       expect(isPasswordValid('Pass1!'), true);
-      
+
       // Long password with all requirements
       expect(isPasswordValid('ThisIsAVeryLongPassword123!@#'), true);
     });

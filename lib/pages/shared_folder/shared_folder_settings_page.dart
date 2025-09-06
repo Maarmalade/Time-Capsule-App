@@ -108,9 +108,10 @@ class _SharedFolderSettingsPageState extends State<SharedFolderSettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Contributors invited successfully'),
+          SnackBar(
+            content: Text('${selectedIds.length} contributor(s) invited successfully'),
             behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green,
           ),
         );
         _loadData(); // Refresh the data

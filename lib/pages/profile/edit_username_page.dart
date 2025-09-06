@@ -123,16 +123,16 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Username'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 1,
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _updateUsername,
             child: Text(
               'Save',
               style: TextStyle(
-                color: _isLoading ? Colors.white54 : Colors.white,
+                color: _isLoading ? Colors.black54 : Colors.black,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -266,12 +266,14 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _updateUsername,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: Colors.grey, width: 1),
                     ),
+                    elevation: 2,
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -279,7 +281,7 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                           ),
                         )
                       : const Text(
@@ -287,6 +289,7 @@ class _EditUsernamePageState extends State<EditUsernamePage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
+                            color: Colors.black,
                           ),
                         ),
                 ),

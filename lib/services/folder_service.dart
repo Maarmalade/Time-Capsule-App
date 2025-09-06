@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/folder_model.dart' as folder_model;
 import '../models/shared_folder_data.dart';
-import '../models/shared_folder_notification_model.dart';
+
 import '../models/user_profile.dart';
 import 'media_service.dart';
 import 'user_profile_service.dart';
@@ -310,10 +310,7 @@ class FolderService {
 
       await ref.set(folderData);
 
-      // Send notifications to contributors
-      for (final contributorId in uniqueContributors) {
-        await notifyContributorAdded(ref.id, contributorId);
-      }
+      // Contributors added successfully - no notification needed
 
       // Record the shared folder creation for rate limiting
       SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
@@ -403,10 +400,7 @@ class FolderService {
         ...sharedData.toMap(),
       });
 
-      // Send notifications to contributors
-      for (final contributorId in uniqueContributors) {
-        await notifyContributorAdded(folderId, contributorId);
-      }
+      // Contributors added successfully - no notification needed
 
       // Record the shared folder creation for rate limiting
       SocialRateLimiters.recordSharedFolderModification(currentUser.uid);
@@ -429,9 +423,6 @@ class FolderService {
       if (currentUser == null) {
         throw Exception('User must be logged in to invite contributors');
       }
-
-      // Verify authentication token is valid
-      await currentUser.getIdToken(true);
 
       if (folderId.isEmpty) {
         throw Exception('Folder ID is required');
@@ -488,19 +479,8 @@ class FolderService {
         'contributorIds': updatedContributors,
       });
 
-      // Send notifications to new contributors
-      for (final contributorId in newContributors) {
-        await notifyContributorAdded(folderId, contributorId);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'token-expired' || e.code == 'user-token-expired') {
-        throw Exception('Your session has expired. Please sign in again.');
-      }
-      throw Exception('Authentication error: ${ErrorHandler.getErrorMessage(e)}');
+      // Contributors successfully added - no notification needed
     } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') {
-        throw Exception('You don\'t have permission to perform this action. Please sign in again.');
-      }
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
       if (e is Exception) {
@@ -512,67 +492,7 @@ class FolderService {
     }
   }
 
-  // Notify contributor when added to a shared folder
-  Future<void> notifyContributorAdded(String folderId, String contributorId) async {
-    try {
-      if (folderId.isEmpty) {
-        throw Exception('Folder ID is required');
-      }
 
-      if (contributorId.isEmpty) {
-        throw Exception('Contributor ID is required');
-      }
-
-      // Get folder information
-      final folderDoc = await _firestore
-          .collection('folders')
-          .doc(folderId)
-          .get();
-      if (!folderDoc.exists) {
-        throw Exception('Folder not found');
-      }
-
-      final folderData = folderDoc.data() as Map<String, dynamic>;
-      final folderName = folderData['name'] ?? 'Unknown Folder';
-      final ownerId = folderData['userId'] ?? '';
-
-      if (ownerId.isEmpty) {
-        throw Exception('Folder owner not found');
-      }
-
-      // Get owner information
-      final ownerProfile = await _userProfileService.getUserProfile(ownerId);
-      if (ownerProfile == null) {
-        throw Exception('Folder owner profile not found');
-      }
-
-      // Create notification
-      final notification = SharedFolderNotification(
-        id: '', // Will be set by Firestore
-        folderId: folderId,
-        folderName: folderName,
-        ownerId: ownerId,
-        ownerUsername: ownerProfile.username,
-        contributorId: contributorId,
-        createdAt: DateTime.now(),
-        isRead: false,
-      );
-
-      // Save notification to Firestore
-      await _firestore
-          .collection('shared_folder_notifications')
-          .add(notification.toFirestore());
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception(
-        'Failed to notify contributor: ${ErrorHandler.getErrorMessage(e)}',
-      );
-    }
-  }
 
   // Remove contributor from a shared folder
   Future<void> removeContributor(String folderId, String userId) async {
@@ -618,8 +538,7 @@ class FolderService {
         'contributorIds': updatedContributors,
       });
 
-      // Notify the removed contributor (for requirement 5.5)
-      await _notifyContributorRemoved(folderId, userId, folder.name);
+      // Contributor removed successfully - no notification needed
     } on FirebaseException catch (e) {
       throw Exception(ErrorHandler.getErrorMessage(e));
     } catch (e) {
@@ -632,37 +551,7 @@ class FolderService {
     }
   }
 
-  // Helper method to notify contributor when removed
-  Future<void> _notifyContributorRemoved(String folderId, String contributorId, String folderName) async {
-    try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) return;
 
-      // Get owner information
-      final ownerProfile = await _userProfileService.getUserProfile(currentUser.uid);
-      if (ownerProfile == null) return;
-
-      // Create removal notification
-      final notification = SharedFolderNotification(
-        id: '', // Will be set by Firestore
-        folderId: folderId,
-        folderName: folderName,
-        ownerId: currentUser.uid,
-        ownerUsername: ownerProfile.username,
-        contributorId: contributorId,
-        createdAt: DateTime.now(),
-        isRead: false,
-      );
-
-      // Save notification to Firestore with a different collection for removals
-      await _firestore
-          .collection('shared_folder_removal_notifications')
-          .add(notification.toFirestore());
-    } catch (e) {
-      // Don't throw error for notification failures - the main operation should succeed
-      // Log error silently - notification failure shouldn't block contributor removal
-    }
-  }
 
   // Lock folder to prevent further contributions
   Future<void> lockFolder(String folderId) async {
@@ -1261,116 +1150,7 @@ class FolderService {
     }
   }
 
-  // ========== SHARED FOLDER NOTIFICATION FUNCTIONALITY ==========
 
-  // Get shared folder notifications for a user
-  Future<List<SharedFolderNotification>> getSharedFolderNotifications(String userId) async {
-    try {
-      if (userId.isEmpty) {
-        throw Exception('User ID is required');
-      }
-
-      final querySnapshot = await _firestore
-          .collection('shared_folder_notifications')
-          .where('contributorId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return querySnapshot.docs
-          .map((doc) => SharedFolderNotification.fromFirestore(doc))
-          .toList();
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception(
-        'Failed to get shared folder notifications: ${ErrorHandler.getErrorMessage(e)}',
-      );
-    }
-  }
-
-  // Stream shared folder notifications for a user
-  Stream<List<SharedFolderNotification>> streamSharedFolderNotifications(String userId) {
-    if (userId.isEmpty) {
-      return Stream.value([]);
-    }
-
-    return _firestore
-        .collection('shared_folder_notifications')
-        .where('contributorId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => SharedFolderNotification.fromFirestore(doc))
-            .toList());
-  }
-
-  // Mark notification as read
-  Future<void> markNotificationAsRead(String notificationId) async {
-    try {
-      if (notificationId.isEmpty) {
-        throw Exception('Notification ID is required');
-      }
-
-      await _firestore
-          .collection('shared_folder_notifications')
-          .doc(notificationId)
-          .update({'isRead': true});
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception(
-        'Failed to mark notification as read: ${ErrorHandler.getErrorMessage(e)}',
-      );
-    }
-  }
-
-  // Delete notification
-  Future<void> deleteNotification(String notificationId) async {
-    try {
-      if (notificationId.isEmpty) {
-        throw Exception('Notification ID is required');
-      }
-
-      await _firestore
-          .collection('shared_folder_notifications')
-          .doc(notificationId)
-          .delete();
-    } on FirebaseException catch (e) {
-      throw Exception(ErrorHandler.getErrorMessage(e));
-    } catch (e) {
-      if (e is Exception) {
-        rethrow;
-      }
-      throw Exception(
-        'Failed to delete notification: ${ErrorHandler.getErrorMessage(e)}',
-      );
-    }
-  }
-
-  // Get unread notification count for a user
-  Future<int> getUnreadNotificationCount(String userId) async {
-    try {
-      if (userId.isEmpty) {
-        return 0;
-      }
-
-      final querySnapshot = await _firestore
-          .collection('shared_folder_notifications')
-          .where('contributorId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      return querySnapshot.docs.length;
-    } catch (e) {
-      return 0;
-    }
-  }
 
   // Get shared folders between current user and another user
   Future<List<folder_model.FolderModel>> getSharedFoldersBetweenUsers(String otherUserId) async {

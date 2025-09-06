@@ -199,31 +199,7 @@ service cloud.firestore {
                        resource.data.status == 'pending';
     }
 
-    // Shared Folder Notifications collection
-    match /shared_folder_notifications/{notificationId} {
-      // Allow folder owner to create notifications when sharing folders
-      allow create: if isAuthenticated() && 
-                       request.resource.data.folderOwnerId == request.auth.uid &&
-                       request.resource.data.keys().hasAll(['folderOwnerId', 'recipientId', 'folderId', 'folderName', 'createdAt', 'isRead']) &&
-                       request.resource.data.folderOwnerId != request.resource.data.recipientId;
-      
-      // Allow recipients to read their own notifications
-      allow read: if isAuthenticated() && 
-                     resource.data.recipientId == request.auth.uid;
-      
-      // Allow recipients to update their notification status (read/unread)
-      allow update: if isAuthenticated() && 
-                       resource.data.recipientId == request.auth.uid &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']);
-      
-      // Allow folder owner to delete notifications they sent
-      allow delete: if isAuthenticated() && 
-                       resource.data.folderOwnerId == request.auth.uid;
-      
-      // Allow recipients to delete their own notifications
-      allow delete: if isAuthenticated() && 
-                       resource.data.recipientId == request.auth.uid;
-    }
+
 
     // FCM Tokens collection
     match /fcm_tokens/{tokenId} {

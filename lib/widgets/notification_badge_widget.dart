@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../services/folder_service.dart';
-import '../design_system/app_colors.dart';
 
-class NotificationBadgeWidget extends StatefulWidget {
+class NotificationBadgeWidget extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
 
@@ -14,67 +11,12 @@ class NotificationBadgeWidget extends StatefulWidget {
   });
 
   @override
-  State<NotificationBadgeWidget> createState() => _NotificationBadgeWidgetState();
-}
-
-class _NotificationBadgeWidgetState extends State<NotificationBadgeWidget> {
-  final FolderService _folderService = FolderService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
-    if (user == null) {
-      return GestureDetector(
-        onTap: widget.onTap,
-        child: widget.child,
-      );
-    }
-
-    return StreamBuilder<List<dynamic>>(
-      stream: _folderService.streamSharedFolderNotifications(user.uid),
-      builder: (context, snapshot) {
-        final notifications = snapshot.data ?? [];
-        final unreadCount = notifications.where((n) => !n.isRead).length;
-
-        return GestureDetector(
-          onTap: widget.onTap,
-          child: Stack(
-            children: [
-              widget.child,
-              if (unreadCount > 0)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: AppColors.errorRed, // Use semantic error color that works with black theme
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.primaryWhite,
-                        width: 1,
-                      ),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      unreadCount > 99 ? '99+' : unreadCount.toString(),
-                      style: const TextStyle(
-                        color: AppColors.primaryWhite,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
+    // Shared folder notifications have been removed
+    // This widget now just wraps the child without showing any badges
+    return GestureDetector(
+      onTap: onTap,
+      child: child,
     );
   }
 }
