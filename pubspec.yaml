@@ -1,5 +1,5 @@
 name: time_capsule
-description: "A new Flutter project."
+description: "Time Capsule - Digital Memory Albums"
 
 publish_to: 'none' 
 
@@ -20,24 +20,56 @@ dependencies:
   firebase_auth: ^5.6.2
   cloud_firestore: ^5.6.2
   firebase_storage: ^12.3.6
+  cloud_functions: ^5.6.2
+  firebase_app_check: ^0.3.1+3
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
+  http: ^1.1.0
+  google_sign_in: ^6.2.1
   
   device_preview: ^1.3.1
   table_calendar: ^3.0.9
   image_picker: ^1.0.7
   flutter_image_compress: ^2.2.0
+  cached_network_image: ^3.3.1
+  video_player: ^2.9.2
+  chewie: ^1.8.5
+  google_fonts: ^6.1.0
+  record: ^6.0.0
+  audioplayers: ^6.0.0
+  file_picker: ^8.0.0
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.2
+  path: ^1.9.0
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  integration_test:
+    sdk: flutter
 
   flutter_lints: ^5.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.9
+  fake_cloud_firestore: ^3.0.3
+  firebase_auth_mocks: ^0.14.0
+  flutter_launcher_icons: ^0.13.1
 
 
 flutter:
 
-
   uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - lib/src/img/
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_logo.png"
+  adaptive_icon_background: "#1a1a1a"
+  adaptive_icon_foreground: "assets/images/app_logo.png"
 
 
