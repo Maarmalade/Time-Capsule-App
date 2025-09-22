@@ -211,10 +211,3 @@ flutter build apk --release
 4. Write tests for new functionality
 5. Follow Firebase integration patterns
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-**Built with Flutter 💙 | Powered by Firebase 🔥**
